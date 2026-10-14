@@ -1,0 +1,34 @@
+name: Setup React Native
+description: Install Node, Java and npm dependencies, and make the Gradle wrapper executable.
+
+inputs:
+  node-version:
+    description: Node.js version
+    default: '20'
+  java-version:
+    description: Java (JDK) version used by Gradle
+    default: '17'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+        cache: gradle
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Make Gradle wrapper executable
+      shell: bash
+      run: chmod +x android/gradlew

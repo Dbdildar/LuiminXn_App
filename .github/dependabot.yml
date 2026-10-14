@@ -1,0 +1,39 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    # React Native and React are upgraded on purpose, following the official
+    # upgrade guide, never by an automatic pull request.
+    ignore:
+      - dependency-name: react
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: react-native
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: '@react-native/*'
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
+
+  - package-ecosystem: gradle
+    directory: /android
+    target-branch: develop
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly

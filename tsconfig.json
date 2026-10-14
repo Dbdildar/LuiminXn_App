@@ -1,0 +1,19 @@
+{
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "types": ["jest", "node"]
+  },
+  "include": [
+    "App.tsx",
+    "index.js",
+    "src/**/*",
+    "__tests__/**/*",
+    "jest.setup.ts",
+    "e2e/**/*"
+  ],
+  "exclude": ["node_modules", "android", "coverage"]
+}

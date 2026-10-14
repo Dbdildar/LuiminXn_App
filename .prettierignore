@@ -1,0 +1,5 @@
+node_modules
+android
+coverage
+e2e/artifacts
+package-lock.json

@@ -1,0 +1,153 @@
+name: Android PRODUCTION
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Google Play track to publish to
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+        default: internal
+      status:
+        description: Release status (use draft for the very first upload of a new app)
+        type: choice
+        options:
+          - completed
+          - draft
+        default: completed
+
+permissions:
+  contents: read
+
+# Releases are queued, never cancelled half way through.
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: PRODUCTION CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier
+        run: npm run format:check
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:ci
+
+      - name: Coverage summary
+        if: always()
+        run: node scripts/coverage-summary.js
+
+      - name: Security audit (critical, blocking)
+        run: npm audit --omit=dev --audit-level=critical
+
+  e2e:
+    name: PRODUCTION Detox E2E
+    runs-on: ubuntu-latest
+    needs: verify
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: Build Detox APKs
+        run: npm run detox:build
+
+      - name: Run Detox on emulator
+        uses: ./.github/actions/detox-android
+        with:
+          api-level: '35'
+
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    needs: [verify, e2e]
+    # Add "Required reviewers" to this environment in GitHub to make every
+    # production release wait for a manual approval.
+    environment: production
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: Read app version
+        id: version
+        run: echo "name=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Staging and production share one app id, so production build numbers
+      # start 10000 higher. A tester can then always install production over
+      # a staging build without Android refusing a "downgrade".
+      - name: Set version code
+        run: echo "VERSION_CODE=$((GITHUB_RUN_NUMBER + 10000))" >> "$GITHUB_ENV"
+
+      - name: Configure release signing
+        uses: ./.github/actions/android-signing
+        with:
+          keystore-base64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          keystore-password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          key-alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          key-password: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Build signed release AAB and APK
+        working-directory: android
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+        run: ./gradlew bundleRelease assembleRelease --no-daemon --stacktrace
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-${{ github.sha }}
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 90
+
+      - name: Publish to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.luminxn
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: ${{ inputs.track || 'internal' }}
+          status: ${{ inputs.status || 'completed' }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.name }}-build.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: LuminXn ${{ steps.version.outputs.name }} (build ${{ github.run_number }})
+          generate_release_notes: true
+          files: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/apk/release/app-release.apk

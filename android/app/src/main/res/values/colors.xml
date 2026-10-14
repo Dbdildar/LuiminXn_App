@@ -1,0 +1,4 @@
+<resources>
+    <!-- Matches the splash screen background so there is no white flash on launch. -->
+    <color name="luminxn_background">#05030F</color>
+</resources>

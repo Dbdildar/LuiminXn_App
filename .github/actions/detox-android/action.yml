@@ -1,0 +1,64 @@
+name: Detox Android E2E
+description: >
+  Run the Detox end-to-end tests on an Android emulator. Expects the app and
+  test APKs to be built already (npm run detox:build) and dependencies installed.
+
+inputs:
+  api-level:
+    description: Android API level of the emulator
+    default: '35'
+
+runs:
+  using: composite
+  steps:
+    # GitHub's Linux runners need KVM opened up for hardware accelerated emulators.
+    - name: Enable KVM
+      shell: bash
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+
+    - name: Cache AVD
+      id: avd-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.android/avd/*
+          ~/.android/adb*
+        key: avd-${{ inputs.api-level }}-google_apis-x86_64-v1
+
+    # The AVD name "test" must match devices.emulator.device.avdName in .detoxrc.js
+    - name: Create AVD and warm-up snapshot
+      if: steps.avd-cache.outputs.cache-hit != 'true'
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: ${{ inputs.api-level }}
+        target: google_apis
+        arch: x86_64
+        avd-name: test
+        force-avd-creation: false
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: false
+        script: echo "Generated AVD snapshot for caching."
+
+    - name: Run Detox tests
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: ${{ inputs.api-level }}
+        target: google_apis
+        arch: x86_64
+        avd-name: test
+        force-avd-creation: false
+        emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: true
+        script: npm run detox:test
+
+    - name: Upload Detox logs and screenshots
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: detox-artifacts-api${{ inputs.api-level }}-${{ github.run_id }}
+        path: artifacts/
+        if-no-files-found: ignore
+        retention-days: 7

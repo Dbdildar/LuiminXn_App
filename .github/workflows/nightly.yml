@@ -1,0 +1,165 @@
+name: Nightly - Full Regression
+
+on:
+  schedule:
+    # 21:00 UTC every day (02:30 AM India time)
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  health:
+    name: Code Health
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier
+        run: npm run format:check
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:ci
+
+      - name: Coverage summary
+        if: always()
+        run: node scripts/coverage-summary.js
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Security audit (critical, blocking)
+        run: npm audit --omit=dev --audit-level=critical
+
+      - name: Dependency report
+        if: always()
+        continue-on-error: true
+        run: |
+          {
+            echo "### Outdated dependencies"
+            echo '```'
+            npm outdated || true
+            echo '```'
+            echo "### Known vulnerabilities (production dependencies)"
+            echo '```'
+            npm audit --omit=dev || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build Detox APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: Build Detox APKs
+        run: npm run detox:build
+
+      - name: Upload Detox APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-detox-apks
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk
+          retention-days: 2
+
+  detox:
+    name: Detox on Android ${{ matrix.api-level }}
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [34, 35]
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: Download Detox APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: nightly-detox-apks
+          path: android/app/build/outputs/apk
+
+      - name: Run Detox on emulator
+        uses: ./.github/actions/detox-android
+        with:
+          api-level: ${{ matrix.api-level }}
+
+  report:
+    name: Report failures
+    runs-on: ubuntu-latest
+    needs: [health, build, detox]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the nightly failure issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Nightly build is failing';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `The nightly regression failed.\n\nRun: ${runUrl}`;
+
+            const {data: issues} = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'nightly-failure',
+            });
+
+            if (issues.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['nightly-failure'],
+              });
+            }

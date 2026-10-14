@@ -1,0 +1,126 @@
+name: Android STAGING
+
+on:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: read
+
+# Releases are queued, never cancelled half way through.
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: STAGING CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:ci
+
+      - name: Coverage summary
+        if: always()
+        run: node scripts/coverage-summary.js
+
+      - name: Security audit (critical, blocking)
+        run: npm audit --omit=dev --audit-level=critical
+
+  e2e:
+    name: STAGING Detox E2E
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: Build Detox APKs
+        run: npm run detox:build
+
+      - name: Run Detox on emulator
+        uses: ./.github/actions/detox-android
+        with:
+          api-level: '35'
+
+  build-staging:
+    name: Build signed STAGING APK
+    runs-on: ubuntu-latest
+    needs: [test, e2e]
+    environment: staging
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: Read app version
+        id: version
+        run: echo "name=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Configure release signing
+        uses: ./.github/actions/android-signing
+        with:
+          keystore-base64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          keystore-password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          key-alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          key-password: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Build signed release APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: ${{ steps.version.outputs.name }}-staging
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Upload STAGING APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-apk-${{ github.sha }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+  firebase:
+    name: Firebase App Distribution
+    runs-on: ubuntu-latest
+    needs: build-staging
+    environment: staging
+    timeout-minutes: 10
+    steps:
+      - name: Download STAGING APK
+        uses: actions/download-artifact@v4
+        with:
+          name: staging-apk-${{ github.sha }}
+          path: release
+
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          groups: staging-testers
+          file: release/app-release.apk
+          releaseNotes: |
+            STAGING build #${{ github.run_number }}
+            Commit: ${{ github.sha }}
+            Branch: ${{ github.ref_name }}

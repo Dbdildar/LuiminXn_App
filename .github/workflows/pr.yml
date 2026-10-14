@@ -1,0 +1,107 @@
+name: PR - React Native Android CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - staging
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier
+        run: npm run format:check
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:ci
+
+      - name: Coverage summary
+        if: always()
+        run: node scripts/coverage-summary.js
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # Blocks on critical findings only. React Native's own build tooling has
+      # known high findings that cannot be fixed without a React Native upgrade.
+      - name: Security audit (critical, blocking)
+        run: npm audit --omit=dev --audit-level=critical
+
+      - name: Security audit (high, report only)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+  android-build:
+    name: Android Build Verification
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      # Release also bundles and compiles the JavaScript, which debug does not.
+      - name: Build debug and release APKs
+        working-directory: android
+        run: ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-apks
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 7
+
+  detox:
+    name: Detox Android E2E
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-rn
+
+      - name: Build Detox APKs
+        run: npm run detox:build
+
+      - name: Run Detox on emulator
+        uses: ./.github/actions/detox-android
+        with:
+          api-level: '35'

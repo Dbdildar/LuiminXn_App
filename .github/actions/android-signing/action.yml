@@ -1,0 +1,49 @@
+name: Android release signing
+description: >
+  Decode the release keystore from a base64 secret and expose it to Gradle
+  through the ANDROID_KEYSTORE_* environment variables read by
+  android/app/build.gradle.
+
+inputs:
+  keystore-base64:
+    description: Base64 encoded release keystore (.jks / .keystore)
+    required: true
+  keystore-password:
+    description: Keystore password
+    required: true
+  key-alias:
+    description: Key alias inside the keystore
+    required: true
+  key-password:
+    description: Password of the key
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Decode keystore and export signing variables
+      shell: bash
+      env:
+        KEYSTORE_BASE64: ${{ inputs.keystore-base64 }}
+        KEYSTORE_PASSWORD: ${{ inputs.keystore-password }}
+        KEY_ALIAS: ${{ inputs.key-alias }}
+        KEY_PASSWORD: ${{ inputs.key-password }}
+      run: |
+        set -euo pipefail
+
+        for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+          if [ -z "${!name}" ]; then
+            echo "::error::Signing input $name is empty. Add the matching secret to this GitHub environment."
+            exit 1
+          fi
+        done
+
+        KEYSTORE_FILE="$RUNNER_TEMP/release.keystore"
+        echo "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_FILE"
+
+        {
+          echo "ANDROID_KEYSTORE_PATH=$KEYSTORE_FILE"
+          echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+          echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+          echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
+        } >> "$GITHUB_ENV"
