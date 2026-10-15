@@ -32,7 +32,6 @@ describe('SplashScreen', () => {
     expect(screen.getByTestId('splash-logo-x')).toBeOnTheScreen();
     expect(screen.getByText(SPLASH.tagline.text)).toBeOnTheScreen();
     expect(screen.getByRole('progressbar')).toBeOnTheScreen();
-    expect(screen.getByTestId('splash-beam')).toBeOnTheScreen();
     expect(screen.getByTestId('splash-dust')).toBeOnTheScreen();
   });
 

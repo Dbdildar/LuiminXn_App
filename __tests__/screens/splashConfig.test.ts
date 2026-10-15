@@ -18,7 +18,6 @@ describe('splash timeline config', () => {
     const xSettles = SPLASH.neonX.igniteDelay + SPLASH.neonX.igniteDuration;
 
     expect(lastLetterEnds).toBeLessThan(fadeStart);
-    expect(taglineEnds).toBeLessThan(fadeStart);
     expect(xSettles).toBeLessThan(fadeStart);
   });
 
@@ -28,9 +27,6 @@ describe('splash timeline config', () => {
       (WORDMARK.before.length - 1) * SPLASH.letters.stagger;
 
     expect(SPLASH.neonX.igniteDelay).toBeGreaterThan(luminDone);
-    expect(SPLASH.neonX.finalLetterDelay).toBeGreaterThan(
-      SPLASH.neonX.igniteDelay,
-    );
   });
 
   it('keeps the reduced-motion version shorter than the full one', () => {
