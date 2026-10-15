@@ -3,7 +3,6 @@ import {
   Backdrop,
   DustMotes,
   LoadingLine,
-  ProjectorBeam,
   Tagline,
 } from '../../src/screens/Splash/components';
 import {DUST_MOTES, SPLASH} from '../../src/screens/Splash/splashConfig';
@@ -24,21 +23,7 @@ describe('Splash building blocks', () => {
     });
   });
 
-  describe('ProjectorBeam', () => {
-    it.each([false, true])('renders (reduceMotion=%s)', reduceMotion => {
-      render(<ProjectorBeam reduceMotion={reduceMotion} />);
-
-      expect(screen.getByTestId('splash-beam')).toBeOnTheScreen();
-    });
-
-    it('keeps breathing and unmounts cleanly', async () => {
-      const {unmount} = render(<ProjectorBeam reduceMotion={false} />);
-      await advance(9000);
-
-      expect(() => unmount()).not.toThrow();
-    });
-  });
-
+  
   describe('DustMotes', () => {
     it('renders one speck for every configured mote', () => {
       render(<DustMotes reduceMotion={false} />);

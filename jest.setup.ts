@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import {AccessibilityInfo} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 jest.mock('react-native-svg', () => {
   const mockReact = require('react');
@@ -40,11 +41,18 @@ jest.mock('react-native-svg', () => {
   };
 });
 
+// AsyncStorage is native; use the official in-memory mock in tests.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
 // Keep React import used so isolatedModules does not strip the file's module scope.
 export const __jestSetupReact = React;
 
 // Every test starts with "reduce motion" OFF; tests opt in with mockReduceMotion(true).
-beforeEach(() => {
+beforeEach(async () => {
+  // Every test starts like a brand-new install: nothing saved on the phone.
+  await AsyncStorage.clear();
   (AccessibilityInfo.isReduceMotionEnabled as jest.Mock).mockResolvedValue(
     false,
   );

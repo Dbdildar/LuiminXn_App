@@ -6,7 +6,6 @@ import {
   Backdrop,
   DustMotes,
   LoadingLine,
-  ProjectorBeam,
   Tagline,
   Wordmark,
 } from './components';
@@ -19,14 +18,7 @@ export type SplashScreenProps = {
   duration?: number;
 };
 
-/**
- * Animated LuminXn splash screen.
- *
- * Timeline: projector beam -> "Lumin" letters -> neon X ignites, shivers and
- * blinks -> tagline -> loading line fills -> fade out -> `onFinish()`.
- * When the system "reduce motion" setting is on, a calm static version is
- * shown for a shorter time instead.
- */
+
 export function SplashScreen({
   onFinish,
   duration = SPLASH.totalDuration,
@@ -54,8 +46,7 @@ export function SplashScreen({
     });
     fadeOut.start();
 
-    // A plain timer (not the animation callback) decides when we are done,
-    // so the hand-over to the next screen never depends on animation state.
+  
     const timer = setTimeout(() => {
       if (!finished.current) {
         finished.current = true;
@@ -75,7 +66,6 @@ export function SplashScreen({
 
       {reduceMotion !== null && (
         <Animated.View style={[styles.scene, {opacity: fade}]}>
-          <ProjectorBeam reduceMotion={reduceMotion} />
           <DustMotes reduceMotion={reduceMotion} />
 
           <View style={styles.center}>

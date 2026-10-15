@@ -10,19 +10,19 @@
  * 3800 ─ onFinish() is called
  */
 export const SPLASH = {
-  totalDuration: 3800,
-  fadeOutDuration: 450,
+  totalDuration: 2800,
+  fadeOutDuration: 350,
   /** Used instead of the full show when "reduce motion" is on. */
-  reducedMotionDuration: 1500,
+  reducedMotionDuration: 1000,
 
-  beam: {delay: 0, duration: 900},
+  beam: {delay: 0, duration: 700},
 
-  letters: {start: 500, stagger: 90, duration: 520, rise: 16},
+  letters: {start: 400, stagger: 90, duration: 420, rise: 16},
 
   neonX: {
-    igniteDelay: 1200,
-    igniteDuration: 700,
-    finalLetterDelay: 1500,
+    igniteDelay: 1000,
+    igniteDuration: 500,
+    finalLetterDelay: 1000,
     /** Pause between two shiver bursts. */
     shiverPause: 1100,
     /** Pause between two blink bursts. */

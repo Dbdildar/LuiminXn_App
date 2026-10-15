@@ -1,7 +1,22 @@
 import {by, device, element, expect as detoxExpect, waitFor} from 'detox';
 
-/** Start-up flow: splash -> home, with no login or registration in between. */
+/**
+ * Start-up flow for a returning user: splash -> home, with no login,
+ * registration or age pop-up (the age gate has its own file: ageGate.e2e.ts).
+ */
 describe('App start-up flow', () => {
+  beforeAll(async () => {
+    // First-time user: install fresh and confirm the age once, so every test
+    // below behaves like a returning user.
+    await device.launchApp({newInstance: true, delete: true});
+    await device.disableSynchronization();
+    await waitFor(element(by.id('age-gate-confirm')))
+      .toBeVisible()
+      .withTimeout(25000);
+    await element(by.id('age-gate-confirm')).tap();
+    await device.enableSynchronization();
+  });
+
   beforeEach(async () => {
     await device.launchApp({newInstance: true});
     await device.disableSynchronization();
@@ -17,6 +32,7 @@ describe('App start-up flow', () => {
       .withTimeout(20000);
 
     await detoxExpect(element(by.id('splash-screen'))).not.toExist();
+    await detoxExpect(element(by.id('age-gate-modal'))).not.toExist();
     await detoxExpect(element(by.text('Welcome to LuminXn'))).toBeVisible();
   });
 
@@ -45,5 +61,6 @@ describe('App start-up flow', () => {
       .toBeVisible()
       .withTimeout(10000);
     await detoxExpect(element(by.id('splash-screen'))).not.toExist();
+    await detoxExpect(element(by.id('age-gate-modal'))).not.toExist();
   });
 });
