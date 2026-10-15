@@ -14,7 +14,7 @@ describe('splash timeline config', () => {
     const fadeStart = SPLASH.totalDuration - SPLASH.fadeOutDuration;
     const lastLetterEnds =
       SPLASH.neonX.finalLetterDelay + SPLASH.letters.duration;
-    const taglineEnds = SPLASH.tagline.delay + SPLASH.tagline.duration;
+
     const xSettles = SPLASH.neonX.igniteDelay + SPLASH.neonX.igniteDuration;
 
     expect(lastLetterEnds).toBeLessThan(fadeStart);
