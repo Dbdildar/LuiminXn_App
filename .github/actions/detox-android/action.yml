@@ -1,7 +1,6 @@
 name: Detox Android E2E
 description: >
-  Run the Detox end-to-end tests on an Android emulator. Expects the app and
-  test APKs to be built already (npm run detox:build) and dependencies installed.
+  Run the Detox end-to-end tests on an Android emulator.
 
 inputs:
   api-level:
@@ -11,7 +10,6 @@ inputs:
 runs:
   using: composite
   steps:
-    # GitHub's Linux runners need KVM opened up for hardware accelerated emulators.
     - name: Enable KVM
       shell: bash
       run: |
@@ -28,7 +26,6 @@ runs:
           ~/.android/adb*
         key: avd-${{ inputs.api-level }}-google_apis-x86_64-v1
 
-    # The AVD name "test" must match devices.emulator.device.avdName in .detoxrc.js
     - name: Create AVD and warm-up snapshot
       if: steps.avd-cache.outputs.cache-hit != 'true'
       uses: reactivecircus/android-emulator-runner@v2
@@ -41,6 +38,11 @@ runs:
         emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
         disable-animations: false
         script: echo "Generated AVD snapshot for caching."
+
+    # --- ADD THIS STEP SO THE APKs ACTUALLY BUILD ---
+    - name: Build Detox App & Test APKs
+      shell: bash
+      run: npm run detox:build -- --configuration android.emu.release
 
     - name: Run Detox tests
       uses: reactivecircus/android-emulator-runner@v2
