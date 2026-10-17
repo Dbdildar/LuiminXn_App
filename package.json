@@ -50,7 +50,7 @@
     "@react-native/eslint-config": "0.79.7",
     "@react-native/metro-config": "0.79.7",
     "@react-native/typescript-config": "0.79.7",
-    "@testing-library/react-native": "13.3.3",
+    "@testing-library/react-native": "14.1.0",
     "@types/jest": "^29.5.13",
     "@types/react": "^19.0.0",
     "@types/react-test-renderer": "^19.0.0",
