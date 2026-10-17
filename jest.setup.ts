@@ -6,6 +6,26 @@ import {AccessibilityInfo} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 
+
+// Suppress noisy React Native act() warnings from animations and async hooks during tests
+const originalError = console.error;
+beforeAll(() => {
+  console.error = (...args) => {
+    if (
+      typeof args[0] === 'string' &&
+      (args[0].includes('An update to %s inside a test was not wrapped in act') ||
+       args[0].includes('Not implemented: navigation') ||
+       args[0].includes('when testing, code that causes React state updates should be wrapped into act'))
+    ) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+});
+
+afterAll(() => {
+  console.error = originalError;
+});
 // Replace your react-native-screens mock in jest.setup.ts with this:
 jest.mock('react-native-screens', () => {
   const React = require('react');
