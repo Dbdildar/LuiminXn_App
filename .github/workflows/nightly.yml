@@ -114,7 +114,7 @@ jobs:
         uses: ./.github/actions/setup-rn
 
       - name: Download Detox APKs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nightly-detox-apks
           path: android/app/build/outputs/apk
