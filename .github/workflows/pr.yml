@@ -44,7 +44,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-coverage
           path: coverage/
@@ -78,7 +78,7 @@ jobs:
         run: ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
 
       - name: Upload APKs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-apks
           path: |
