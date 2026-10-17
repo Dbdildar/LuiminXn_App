@@ -1,4 +1,3 @@
-import {useRef} from 'react';
 import {Modal, Pressable, StyleSheet, Text, View} from 'react-native';
 import {colors, fontSizes, fonts} from '../../theme';
 import {AGE_GATE_COPY} from './ageGateConfig';
@@ -14,26 +13,19 @@ type Props = {
  *
  * It cannot be dismissed by tapping outside. The Android Back button counts as
  * "Cancel" and closes the app, so there is no way round the question.
+ *
+ * The buttons must never "lock" after one press: Android often keeps the app
+ * alive after Cancel / Back, so the same pop-up is shown again when the user
+ * reopens the app. Protection against double taps lives in `useAgeGate`.
  */
 export function AgeGateModal({visible, onConfirm, onDecline}: Props) {
-  // Stops a fast double tap from firing the action twice.
-  const handled = useRef(false);
-
-  const once = (action: () => void) => () => {
-    if (handled.current) {
-      return;
-    }
-    handled.current = true;
-    action();
-  };
-
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={once(onDecline)}>
+      onRequestClose={onDecline}>
       <View style={styles.overlay} testID="age-gate-modal">
         <View
           style={styles.card}
@@ -58,7 +50,7 @@ export function AgeGateModal({visible, onConfirm, onDecline}: Props) {
             testID="age-gate-confirm"
             accessibilityRole="button"
             accessibilityLabel={AGE_GATE_COPY.confirm}
-            onPress={once(onConfirm)}
+            onPress={onConfirm}
             style={({pressed}) => [
               styles.button,
               styles.confirm,
@@ -71,7 +63,7 @@ export function AgeGateModal({visible, onConfirm, onDecline}: Props) {
             testID="age-gate-cancel"
             accessibilityRole="button"
             accessibilityLabel={AGE_GATE_COPY.cancel}
-            onPress={once(onDecline)}
+            onPress={onDecline}
             style={({pressed}) => [
               styles.button,
               styles.cancel,

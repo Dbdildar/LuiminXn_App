@@ -71,29 +71,44 @@ describe('AgeGateModal', () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
-  it('ignores a fast double tap on Confirm', () => {
-    const {onConfirm} = setup();
-
-    fireEvent.press(screen.getByTestId('age-gate-confirm'));
-    fireEvent.press(screen.getByTestId('age-gate-confirm'));
-
-    expect(onConfirm).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not let Cancel run after Confirm was already chosen', () => {
-    const {onConfirm, onDecline} = setup();
-
-    fireEvent.press(screen.getByTestId('age-gate-confirm'));
-    fireEvent.press(screen.getByTestId('age-gate-cancel'));
-
-    expect(onConfirm).toHaveBeenCalledTimes(1);
-    expect(onDecline).not.toHaveBeenCalled();
-  });
-
   it('cannot be dismissed any other way', () => {
     setup();
 
     expect(screen.UNSAFE_getByType(Modal).props.transparent).toBe(true);
     expect(screen.UNSAFE_getByType(Modal).props.onDismiss).toBeUndefined();
+  });
+
+  // Regression: Android keeps the app process alive after "Cancel" / Back, so
+  // reopening the app shows the SAME pop-up. The buttons must still respond.
+  describe('after Cancel or Back (app reopened from the background)', () => {
+    it('Confirm still works after Cancel was pressed earlier', () => {
+      const {onConfirm, onDecline} = setup();
+
+      fireEvent.press(screen.getByTestId('age-gate-cancel'));
+      fireEvent.press(screen.getByTestId('age-gate-confirm'));
+
+      expect(onDecline).toHaveBeenCalledTimes(1);
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    it('both buttons still work after the Back button was pressed', () => {
+      const {onConfirm, onDecline} = setup();
+
+      screen.UNSAFE_getByType(Modal).props.onRequestClose();
+      fireEvent.press(screen.getByTestId('age-gate-cancel'));
+      fireEvent.press(screen.getByTestId('age-gate-confirm'));
+
+      expect(onDecline).toHaveBeenCalledTimes(2);
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    it('Cancel works again every time it is pressed', () => {
+      const {onDecline} = setup();
+
+      fireEvent.press(screen.getByTestId('age-gate-cancel'));
+      fireEvent.press(screen.getByTestId('age-gate-cancel'));
+
+      expect(onDecline).toHaveBeenCalledTimes(2);
+    });
   });
 });

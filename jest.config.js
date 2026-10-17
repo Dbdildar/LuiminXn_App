@@ -6,12 +6,17 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|@react-navigation)',
+  ],
+  
   collectCoverageFrom: [
     'App.tsx',
     'src/**/*.{ts,tsx}',
     '!src/**/index.ts',
     '!src/**/*.d.ts',
   ],
+  
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'json-summary'],
   coverageThreshold: {

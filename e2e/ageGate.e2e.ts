@@ -79,4 +79,28 @@ describe('Age gate', () => {
       .withTimeout(SPLASH_AND_START_UP);
     await detoxExpect(element(by.id('home-screen'))).not.toExist();
   });
+
+  it('Back button, then reopening the same running app: Confirm still works', async () => {
+    await launch({fresh: true});
+
+    await waitFor(element(by.id('age-gate-modal')))
+      .toBeVisible()
+      .withTimeout(SPLASH_AND_START_UP);
+
+    // Back = Cancel: the screen closes but Android keeps the app in memory.
+    await device.pressBack();
+
+    // Bring the same app instance back (no new process, no data wipe).
+    await device.launchApp({newInstance: false});
+    await device.disableSynchronization();
+
+    await waitFor(element(by.id('age-gate-confirm')))
+      .toBeVisible()
+      .withTimeout(10000);
+    await element(by.id('age-gate-confirm')).tap();
+
+    await waitFor(element(by.id('home-screen')))
+      .toBeVisible()
+      .withTimeout(10000);
+  });
 });

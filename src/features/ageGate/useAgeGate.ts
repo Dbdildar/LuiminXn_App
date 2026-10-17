@@ -45,8 +45,15 @@ export function useAgeGate() {
     saveAgeVerification();
   }, []);
 
-  /** User tapped "Cancel" (or pressed Back): close the app. Nothing is saved. */
+  /**
+   * User tapped "Cancel" (or pressed Back): close the app. Nothing is saved.
+   * Safe to call again: Android may keep the app alive in the background, and
+   * when the user reopens it the same pop-up must still work.
+   */
   const decline = useCallback(() => {
+    if (confirmed.current) {
+      return;
+    }
     BackHandler.exitApp();
   }, []);
 

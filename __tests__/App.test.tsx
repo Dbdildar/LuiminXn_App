@@ -6,6 +6,14 @@ import {saveAgeVerification} from '../src/features/ageGate';
 import {STORAGE_KEY} from '../src/features/ageGate/ageGateConfig';
 import {SPLASH} from '../src/screens/Splash/splashConfig';
 import {advance, flushPromises, useMotionTimers} from './helpers/motion';
+import {fetchCategories, fetchVideoPage} from '../src/features/videos/videoApi';
+
+
+jest.mock('../src/features/videos/videoApi', () => ({
+  PAGE_SIZE: 20,
+  fetchVideoPage: jest.fn(),
+  fetchCategories: jest.fn(),
+}));
 
 /** Start the app and let the splash play to its end. */
 async function launchAndFinishSplash() {
@@ -18,9 +26,12 @@ async function launchAndFinishSplash() {
 describe('App', () => {
   let exitApp: jest.SpyInstance;
 
-  beforeEach(() => {
+   beforeEach(() => {
     useMotionTimers();
     exitApp = jest.spyOn(BackHandler, 'exitApp').mockImplementation(() => {});
+    // Home calls the backend; in tests it gets an empty catalogue.
+    (fetchVideoPage as jest.Mock).mockResolvedValue({items: [], total: 0, nextOffset: null});
+    (fetchCategories as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -84,6 +95,36 @@ describe('App', () => {
       expect(exitApp).toHaveBeenCalledTimes(1);
       expect(screen.queryByTestId('home-screen')).toBeNull();
       expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it('Cancel, then reopening the still-running app: Confirm works', async () => {
+      await launchAndFinishSplash();
+
+      // Android closes the screen but keeps the app in memory.
+      fireEvent.press(screen.getByTestId('age-gate-cancel'));
+      await flushPromises();
+      expect(screen.getByTestId('age-gate-modal')).toBeOnTheScreen();
+
+      // The user comes back and the same pop-up is still on screen.
+      fireEvent.press(screen.getByTestId('age-gate-confirm'));
+      await flushPromises();
+
+      expect(screen.getByTestId('home-screen')).toBeOnTheScreen();
+      expect(await AsyncStorage.getItem(STORAGE_KEY)).not.toBeNull();
+    });
+
+    it('Back, then reopening the still-running app: Cancel and Confirm both work', async () => {
+      await launchAndFinishSplash();
+
+      screen.UNSAFE_getByType(Modal).props.onRequestClose();
+      await flushPromises();
+
+      fireEvent.press(screen.getByTestId('age-gate-cancel'));
+      expect(exitApp).toHaveBeenCalledTimes(2);
+
+      fireEvent.press(screen.getByTestId('age-gate-confirm'));
+      await flushPromises();
+      expect(screen.getByTestId('home-screen')).toBeOnTheScreen();
     });
 
     it('Android Back on the pop-up closes the app too', async () => {

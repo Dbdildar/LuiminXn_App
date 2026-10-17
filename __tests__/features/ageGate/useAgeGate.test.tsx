@@ -103,6 +103,37 @@ describe('useAgeGate', () => {
     expect(result.current.status).toBe('required');
   });
 
+  it('decline: can be used again and again (the app may stay alive after closing)', async () => {
+    const {result} = renderHook(() => useAgeGate());
+    await flushPromises();
+
+    await act(async () => result.current.decline());
+    await act(async () => result.current.decline());
+
+    expect(exitApp).toHaveBeenCalledTimes(2);
+  });
+
+  it('confirm: still works after a Cancel (user reopened the app and changed their mind)', async () => {
+    const {result} = renderHook(() => useAgeGate());
+    await flushPromises();
+
+    await act(async () => result.current.decline());
+    await act(async () => result.current.confirm());
+
+    expect(result.current.status).toBe('verified');
+    expect(await readAgeVerification()).toBe(true);
+  });
+
+  it('decline: does nothing once the age has been confirmed', async () => {
+    const {result} = renderHook(() => useAgeGate());
+    await flushPromises();
+
+    await act(async () => result.current.confirm());
+    await act(async () => result.current.decline());
+
+    expect(exitApp).not.toHaveBeenCalled();
+  });
+
   it('a confirm tap during the first read is not overwritten by the read result', async () => {
     const {result} = renderHook(() => useAgeGate());
 
