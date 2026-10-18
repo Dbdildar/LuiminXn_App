@@ -34,7 +34,9 @@ export const previewMock = {
   },
   stop: (id?: string) => {
     stopSpy(id);
-    if (id === undefined || current === id) set(null);
+    if (id === undefined || current === id) {
+      set(null);
+    }
   },
   reset() {
     current = null;
@@ -45,7 +47,6 @@ export const previewMock = {
 };
 
 export const previewModule = {
-  // ✅ THE FIX — was missing, caused "Element type is invalid"
   PreviewProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
@@ -65,10 +66,10 @@ export const previewModule = {
   },
   PreviewPlayer: ({
     onReady,
-    onError,
+    _onError,
   }: {
     onReady?: () => void;
-    onError?: () => void;
+    _onError?: () => void;
   }) => <Pressable testID="preview-player" onPress={onReady} />,
   PreviewLoader: () => <View testID="preview-loader" />,
 };

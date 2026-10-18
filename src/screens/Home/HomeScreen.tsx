@@ -13,7 +13,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {PreviewLoader, PreviewPlayer, usePreview} from '../../features/preview';
+import {usePreview} from '../../features/preview';
 import {
   useCategories,
   useTrending,
