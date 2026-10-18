@@ -1,60 +1,61 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
-import {AppState} from 'react-native';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { AppState } from 'react-native';
 
-type PreviewValue = {
-  /** The ONE video that is previewing right now (or null). */
+interface PreviewContextType {
   previewId: string | null;
   startPreview: (id: string) => void;
-  /** With an id: stops only if that video is the one previewing. */
   stopPreview: (id?: string) => void;
-};
+}
 
-const noop = () => {};
-const PreviewContext = createContext<PreviewValue>({
-  previewId: null,
-  startPreview: noop,
-  stopPreview: noop,
-});
+// 1. Initialize context with undefined so we can cleanly detect missing providers
+const PreviewContext = createContext<PreviewContextType | undefined>(undefined);
 
-/**
- * Holds a single "who is previewing" id, so two previews can never run at once:
- * starting a new one simply replaces the old one. Also stops when the app goes
- * to the background.
- */
-export function PreviewProvider({children}: {children: ReactNode}) {
+export const PreviewProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [previewId, setPreviewId] = useState<string | null>(null);
 
-  const startPreview = useCallback((id: string) => setPreviewId(id), []);
-  const stopPreview = useCallback(
-    (id?: string) =>
-      setPreviewId(current => (id === undefined || current === id ? null : current)),
-    [],
-  );
-
   useEffect(() => {
-    const sub = AppState.addEventListener('change', next => {
-      if (next !== 'active') {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
         setPreviewId(null);
       }
     });
-    return () => sub.remove();
+
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
-  const value = useMemo(
-    () => ({previewId, startPreview, stopPreview}),
-    [previewId, startPreview, stopPreview],
-  );
-  return <PreviewContext.Provider value={value}>{children}</PreviewContext.Provider>;
-}
+  const startPreview = (id: string) => {
+    setPreviewId(id);
+  };
 
-export function usePreview(): PreviewValue {
-  return useContext(PreviewContext);
-}
+  const stopPreview = (id?: string) => {
+    setPreviewId((current) => {
+      if (!id || current === id) {
+        return null;
+      }
+      return current;
+    });
+  };
+
+  return (
+    <PreviewContext.Provider value={{ previewId, startPreview, stopPreview }}>
+      {children}
+    </PreviewContext.Provider>
+  );
+};
+
+export const usePreview = (): PreviewContextType => {
+  const context = useContext(PreviewContext);
+
+  // 2. If no provider is present, return a fresh, isolated no-op object every time
+  if (!context) {
+    return {
+      previewId: null,
+      startPreview: () => {},
+      stopPreview: () => {},
+    };
+  }
+
+  return context;
+};

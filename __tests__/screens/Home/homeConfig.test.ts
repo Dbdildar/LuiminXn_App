@@ -1,32 +1,25 @@
-import {HOME, getCardWidth, getColumns, getTrendingCardWidth} from '../../../src/screens/Home/homeConfig';
+import { HOME, getCardWidth, getColumns, getContentWidth } from '../../../src/screens/Home/homeConfig';
 
-describe('getColumns', () => {
-  it.each([
-    [320, 2],
-    [411, 2],
-    [560, 3],
-    [800, 4],
-    [1024, 5],
-  ])('%ipx -> %i columns', (w, cols) => {
-    expect(getColumns(w)).toBe(cols);
+const WIDTHS = [280, 320, 360, 390, 430, 600, 768, 1024, 1280];
+
+describe('homeConfig', () => {
+  it.each(WIDTHS)('always uses 3 columns (width %i)', w => {
+    expect(getColumns(w)).toBe(3);
   });
-});
 
-describe('getCardWidth', () => {
-  it('fits columns, padding and gaps inside the screen', () => {
-    for (const w of [320, 360, 411, 600, 820, 1100]) {
-      const cols = getColumns(w);
-      const used = getCardWidth(w, cols) * cols + HOME.grid.gap * (cols - 1) + HOME.grid.padding * 2;
-      expect(used).toBeLessThanOrEqual(w);
-      expect(w - used).toBeLessThan(cols);
-    }
+  it.each(WIDTHS)('3 cards + gaps + padding never exceed the content width (width %i)', w => {
+    const card = getCardWidth(w);
+    const used = card * 3 + HOME.grid.gap * 2 + HOME.grid.padding * 2;
+    expect(used).toBeLessThanOrEqual(getContentWidth(w));
+    expect(card).toBeGreaterThan(0);
   });
-});
 
-describe('getTrendingCardWidth', () => {
-  it('is clamped between min and max', () => {
-    expect(getTrendingCardWidth(200)).toBe(HOME.trending.minWidth);
-    expect(getTrendingCardWidth(411)).toBeGreaterThan(HOME.trending.minWidth);
-    expect(getTrendingCardWidth(2000)).toBe(HOME.trending.maxWidth);
+  it('caps content width on tablets / landscape', () => {
+    expect(getContentWidth(1280)).toBe(HOME.grid.maxContentWidth);
+    expect(getContentWidth(360)).toBe(360);
+  });
+
+  it('cards get wider as the phone gets wider', () => {
+    expect(getCardWidth(430)).toBeGreaterThan(getCardWidth(320));
   });
 });

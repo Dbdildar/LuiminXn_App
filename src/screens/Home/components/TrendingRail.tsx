@@ -1,7 +1,7 @@
 import {FlatList, StyleSheet, View, useWindowDimensions} from 'react-native';
 import {Shimmer} from '../../../components/ui/Shimmer';
 import type {VideoItem} from '../../../features/videos';
-import {HOME, getTrendingCardWidth} from '../homeConfig';
+import {HOME, getCardWidth} from '../homeConfig';
 import {VideoCard} from './VideoCard';
 
 type Props = {
@@ -10,17 +10,20 @@ type Props = {
   onOpenVideo: (video: VideoItem) => void;
 };
 
-/** One horizontally scrolling row of the most-viewed videos, numbered 1..n. */
+/** Horizontal trending row. Cards are sized so 3 are always visible per screen. */
 export function TrendingRail({videos, loading, onOpenVideo}: Props) {
   const {width} = useWindowDimensions();
-  const cardWidth = getTrendingCardWidth(width);
-  const cardHeight = Math.round(cardWidth * HOME.grid.cardAspect);
+  const cardWidth = getCardWidth(width);
+  const step = cardWidth + HOME.grid.gap;
 
   if (loading) {
     return (
-      <View style={styles.skeletonRow} testID="trending-skeleton">
-        {Array.from({length: HOME.skeleton.trending}).map((_, i) => (
-          <Shimmer key={i} style={{width: cardWidth, height: cardHeight, borderRadius: 18}} />
+      <View style={styles.content} testID="trending-skeleton">
+        {Array.from({length: HOME.trending.minVisible}).map((_, i) => (
+          <Shimmer
+            key={i}
+            style={{width: cardWidth, height: Math.round(cardWidth * 1.5), borderRadius: 16}}
+          />
         ))}
       </View>
     );
@@ -33,22 +36,28 @@ export function TrendingRail({videos, loading, onOpenVideo}: Props) {
       data={videos}
       keyExtractor={v => v.id}
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.content}
-      initialNumToRender={4}
-      windowSize={5}
+      snapToInterval={step}
+      decelerationRate="fast"
+      contentContainerStyle={styles.listContent}
+      ItemSeparatorComponent={() => <View style={{width: HOME.grid.gap}} />}
+      // trending cards are tall; give the row vertical room for the 3D lift + shadow
+      style={styles.list}
       renderItem={({item, index}) => (
-        <VideoCard video={item} width={cardWidth} rank={index + 1} onOpen={onOpenVideo} />
+        <VideoCard video={item} width={cardWidth} onOpen={onOpenVideo} rank={index + 1} />
       )}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  content: {paddingHorizontal: HOME.grid.padding, gap: HOME.trending.gap, paddingVertical: 6},
-  skeletonRow: {
+  list: {overflow: 'visible'},
+  listContent: {paddingHorizontal: HOME.grid.padding, paddingVertical: 10},
+  content: {
     flexDirection: 'row',
-    gap: HOME.trending.gap,
+    gap: HOME.grid.gap,
     paddingHorizontal: HOME.grid.padding,
-    overflow: 'hidden',
+    paddingVertical: 10,
   },
 });
+
+export default TrendingRail;

@@ -1,6 +1,6 @@
 import {StyleSheet, View} from 'react-native';
 import {Shimmer} from '../../../components/ui/Shimmer';
-import {HOME} from '../homeConfig';
+import {HOME} from '../oldhomeConfig';
 
 type Props = {columns: number; cardWidth: number};
 

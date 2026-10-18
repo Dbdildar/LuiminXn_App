@@ -1,201 +1,180 @@
-import {memo, useEffect, useRef, useState} from 'react';
+import {memo, useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, Image, Pressable, StyleSheet, Text, View} from 'react-native';
-import Svg, {Defs, LinearGradient, Rect, Stop} from 'react-native-svg';
-import Video from 'react-native-video';
-import {Icon} from '../../../components/icons';
-import {usePreview} from '../../../features/preview';
+import {PreviewLoader, PreviewPlayer, usePreview} from '../../../features/preview';
 import type {VideoItem} from '../../../features/videos';
 import {colors, fonts} from '../../../theme';
 import {glass} from '../../../theme/glass';
-import {formatDuration, formatViews} from '../../../utils/format';
 import {HOME} from '../homeConfig';
-import {PreviewLoader} from './PreviewLoader';
 
 type Props = {
   video: VideoItem;
   width: number;
-  /** Shown as a rank badge (Trending). */
-  rank?: number;
   onOpen: (video: VideoItem) => void;
+  /** Shown as a badge on trending cards. */
+  rank?: number;
 };
 
-function VideoCardBase({video, width, rank, onOpen}: Props) {
+/**
+ * Touch behaviour:
+ *  - touch held for ~90ms (or a quick tap) -> preview starts immediately
+ *  - releasing the finger does NOT stop the preview
+ *  - scrolling stops it (HomeScreen calls stopPreview on scroll begin)
+ *  - tapping a card whose preview is already playing opens the video
+ */
+export const VideoCard = memo(function VideoCard({video, width, onOpen, rank}: Props) {
   const {previewId, startPreview, stopPreview} = usePreview();
-  const previewing = previewId === video.id;
+  const isActive = previewId === video.id;
   const [ready, setReady] = useState(false);
-  const [posterFailed, setPosterFailed] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-  const fade = useRef(new Animated.Value(0)).current;
-  const height = Math.round(width * HOME.grid.cardAspect);
+
+  const lift = useRef(new Animated.Value(0)).current;
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startedByTouch = useRef(false);
+
+  const clearTimer = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+  }, []);
 
   useEffect(() => {
-    Animated.spring(scale, {
-      toValue: previewing ? 1.04 : 1,
+    Animated.spring(lift, {
+      toValue: isActive ? 1 : 0,
       friction: 7,
+      tension: 120,
       useNativeDriver: true,
     }).start();
-    if (!previewing) {
+    if (!isActive) {
       setReady(false);
     }
-  }, [previewing, scale]);
+  }, [isActive, lift]);
 
-  useEffect(() => {
-    Animated.timing(fade, {
-      toValue: ready ? 1 : 0,
-      duration: 220,
-      useNativeDriver: true,
-    }).start();
-  }, [ready, fade]);
+  useEffect(() => clearTimer, [clearTimer]);
 
-  const showingClip = previewing && ready;
-  const meta = `${video.category}, ${formatDuration(video.durationSeconds)}, ${formatViews(video.views)} views`;
+  const handlePressIn = () => {
+    startedByTouch.current = false;
+    clearTimer();
+    if (isActive) {
+      return;
+    }
+    timer.current = setTimeout(() => {
+      startedByTouch.current = true;
+      startPreview(video.id);
+    }, HOME.preview.touchDelayMs);
+  };
+
+  const handlePressOut = () => clearTimer();
+
+  const handlePress = () => {
+    clearTimer();
+    if (startedByTouch.current) {
+      // this same touch already started the preview, so don't open on release
+      startedByTouch.current = false;
+      return;
+    }
+    if (isActive) {
+      stopPreview(video.id);
+      onOpen(video);
+      return;
+    }
+    startPreview(video.id);
+  };
+
+  const height = Math.round(width * 1.5);
+  const transform = [
+    {perspective: 800},
+    {rotateX: lift.interpolate({inputRange: [0, 1], outputRange: ['0deg', '-4deg']})},
+    {scale: lift.interpolate({inputRange: [0, 1], outputRange: [1, 1.05]})},
+    {translateY: lift.interpolate({inputRange: [0, 1], outputRange: [0, -4]})},
+  ];
+
+  console.log("filflß")
 
   return (
-    <Animated.View style={{width, transform: [{scale}], zIndex: previewing ? 5 : 0}}>
-      <Pressable
-        testID="video-card"
-        onPress={() => onOpen(video)}
-        onLongPress={() => startPreview(video.id)}
-        delayLongPress={HOME.preview.longPressMs}
-        onPressOut={() => stopPreview(video.id)}
-        accessibilityRole="button"
-        accessibilityLabel={`${video.title}. ${meta}`}
-        accessibilityHint="Double tap to open. Press and hold to preview."
-        accessibilityActions={[{name: 'longpress', label: 'Preview'}]}
-        onAccessibilityAction={e => {
-          if (e.nativeEvent.actionName === 'longpress') {
-            startPreview(video.id);
-          }
-        }}
-        style={[styles.card, {width, height}]}>
-        <View style={[StyleSheet.absoluteFill, styles.posterBg]}>
-          {!posterFailed && !!video.poster && (
-            <Image
-              source={{uri: video.poster}}
-              resizeMode="cover"
-              style={StyleSheet.absoluteFill}
-              onError={() => setPosterFailed(true)}
-              testID="video-card-poster"
-            />
+    <Pressable
+      testID="video-card"
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`${video.title}${isActive ? ', previewing. Tap to open' : ', tap to preview'}`}>
+      <Animated.View style={[styles.shadow, isActive && styles.glow, {width, height, transform}]}>
+        <View style={styles.face}>
+          <Image
+            source={{uri: video.poster}}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+          {isActive && (
+            <View style={StyleSheet.absoluteFill}>
+              <PreviewPlayer
+                video={video}
+                onReady={() => setReady(true)}
+                onError={() => stopPreview(video.id)}
+              />
+              {!ready && <PreviewLoader />}
+            </View>
+          )}
+          <View style={styles.caption} pointerEvents="none">
+            <Text style={styles.title} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+              {video.title}
+            </Text>
+            {isActive && <Text style={styles.hint}>Tap to open</Text>}
+          </View>
+          {rank !== undefined && (
+            <View style={styles.rank} pointerEvents="none">
+              <Text style={styles.rankText}>{rank}</Text>
+            </View>
           )}
         </View>
-
-        {previewing && (
-          <Animated.View style={[StyleSheet.absoluteFill, {opacity: fade}]} pointerEvents="none">
-            <Video
-              source={{uri: video.videoUrl}}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-              muted
-              repeat
-              playInBackground={false}
-              onReadyForDisplay={() => setReady(true)}
-              onError={() => stopPreview(video.id)}
-            />
-          </Animated.View>
-        )}
-
-        {previewing && !ready && <PreviewLoader />}
-
-        {!showingClip && (
-          <>
-            <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
-              <Defs>
-                <LinearGradient id="cardScrim" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0.45" stopColor="#000" stopOpacity="0" />
-                  <Stop offset="1" stopColor="#000" stopOpacity="0.88" />
-                </LinearGradient>
-              </Defs>
-              <Rect width="100%" height="100%" fill="url(#cardScrim)" />
-            </Svg>
-
-            {rank !== undefined && (
-              <View style={styles.rank} testID="video-card-rank">
-                <Text style={styles.rankText}>{rank}</Text>
-              </View>
-            )}
-
-            <View style={styles.duration}>
-              <Text style={styles.durationText}>{formatDuration(video.durationSeconds)}</Text>
-            </View>
-
-            <View style={styles.meta}>
-              <Text style={styles.category} numberOfLines={1}>
-                {video.category}
-              </Text>
-              <Text style={styles.title} numberOfLines={2}>
-                {video.title}
-              </Text>
-              <View style={styles.statsRow}>
-                <Icon name="eye" size={12} color="rgba(255,255,255,0.8)" />
-                <Text style={styles.stat}>{formatViews(video.views)}</Text>
-                {video.actors[0] ? (
-                  <Text style={[styles.stat, styles.actor]} numberOfLines={1}>
-                    {video.actors[0]}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          </>
-        )}
-      </Pressable>
-    </Animated.View>
+      </Animated.View>
+    </Pressable>
   );
-}
-
-export const VideoCard = memo(VideoCardBase);
+});
 
 const styles = StyleSheet.create({
-  card: {
-    overflow: 'hidden',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: glass.borderStrong,
-    backgroundColor: glass.surface,
-    shadowColor: glass.shadow,
+  shadow: {
+    borderRadius: 16,
+    backgroundColor: colors.ink,
+    shadowColor: '#000',
     shadowOpacity: 0.5,
-    shadowRadius: 14,
-    shadowOffset: {width: 0, height: 10},
-    elevation: 6,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 8},
+    elevation: 8,
   },
-  posterBg: {backgroundColor: colors.dusk},
+  glow: {shadowColor: colors.neon, shadowOpacity: 0.75, shadowRadius: 18, elevation: 14},
+  face: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: glass.border,
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.45)',
+  },
+  caption: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  title: {color: colors.filament, fontFamily: fonts.black, fontSize: 12},
+  hint: {color: colors.neon, fontFamily: fonts.medium, fontSize: 10, marginTop: 2},
   rank: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    minWidth: 28,
-    height: 28,
+    top: 6,
+    left: 6,
+    minWidth: 22,
+    height: 22,
     paddingHorizontal: 6,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: colors.neon,
   },
-  rankText: {color: '#fff', fontFamily: fonts.black, fontSize: 12},
-  duration: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  durationText: {color: '#fff', fontFamily: fonts.medium, fontSize: 10},
-  meta: {position: 'absolute', left: 0, right: 0, bottom: 0, padding: 10},
-  category: {
-    color: 'rgba(255,255,255,0.75)',
-    fontFamily: fonts.medium,
-    fontSize: 9,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
-  title: {color: '#fff', fontFamily: fonts.black, fontSize: 13, lineHeight: 17},
-  statsRow: {flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4},
-  stat: {color: 'rgba(255,255,255,0.8)', fontFamily: fonts.medium, fontSize: 10},
-  actor: {flex: 1, marginLeft: 6},
+  rankText: {color: colors.ink, fontFamily: fonts.black, fontSize: 12},
 });
+
+export default VideoCard;

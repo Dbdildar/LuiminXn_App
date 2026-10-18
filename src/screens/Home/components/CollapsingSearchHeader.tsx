@@ -12,7 +12,7 @@ import {Icon} from '../../../components/icons';
 import {useReducedMotion} from '../../../hooks';
 import {colors, fontSizes, fonts} from '../../../theme';
 import {glass} from '../../../theme/glass';
-import {HOME} from '../homeConfig';
+import {HOME} from '../oldhomeConfig';
 import {AppLogo} from './AppLogo';
 
 type Props = {

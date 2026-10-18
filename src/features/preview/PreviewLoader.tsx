@@ -1,7 +1,7 @@
 import {useEffect, useRef} from 'react';
 import {Animated, Easing, StyleSheet, View} from 'react-native';
-import {useReducedMotion} from '../../../hooks';
-import {glass} from '../../../theme/glass';
+import {useReducedMotion} from '../../hooks';
+import {glass} from '../../theme/glass';
 
 function Dot({index, animate}: {index: number; animate: boolean}) {
   const y = useRef(new Animated.Value(0)).current;

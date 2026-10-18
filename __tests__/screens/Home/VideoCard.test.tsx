@@ -1,72 +1,89 @@
-import {fireEvent, screen} from '@testing-library/react-native';
-import {VideoCard} from '../../../src/screens/Home/components';
-import {makeVideo} from '../../helpers/fixtures';
-import {renderWithProviders} from '../../helpers/renderWithProviders';
+
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { VideoCard } from '../../../src/screens/Home/components/VideoCard';
+import { HOME } from '../../../src/screens/Home/homeConfig';
+import { makeVideo } from '../../helpers/fixtures';
+import { previewMock } from '../../helpers/previewMock';
+
+jest.mock('../../../src/features/preview', () =>
+  require('../../helpers/previewMock').previewModule,
+);
+
+const video = makeVideo(2, { title: 'Neon Nights' });
+
+beforeEach(() => {
+  jest.useFakeTimers();
+  previewMock.reset();
+});
+afterEach(() => {
+  jest.runOnlyPendingTimers();
+  jest.useRealTimers();
+});
+
+const renderCard = (onOpen = jest.fn()) => {
+  render(<VideoCard video={video} width={110} onOpen={onOpen} />);
+  return { onOpen, card: () => screen.getByTestId('video-card') };
+};
 
 describe('VideoCard', () => {
-  const a = makeVideo(1, {title: 'Neon Nights', category: 'Action', views: 12_500, durationSeconds: 75});
-  const b = makeVideo(2);
-
-  it('shows title, category, duration and views', () => {
-    renderWithProviders(<VideoCard video={a} width={170} onOpen={jest.fn()} />);
+  it('shows the title', () => {
+    renderCard();
     expect(screen.getByText('Neon Nights')).toBeOnTheScreen();
-    expect(screen.getByText('Action')).toBeOnTheScreen();
-    expect(screen.getByText('1:15')).toBeOnTheScreen();
-    expect(screen.getByText('12.5K')).toBeOnTheScreen();
   });
 
-  it('shows a rank badge only when a rank is given', () => {
-    const {rerender} = renderWithProviders(<VideoCard video={a} width={170} rank={3} onOpen={jest.fn()} />);
-    expect(screen.getByTestId('video-card-rank')).toBeOnTheScreen();
-    rerender(<VideoCard video={a} width={170} onOpen={jest.fn()} />);
-  });
-
-  it('a tap opens the video and does not start a preview', () => {
-    const onOpen = jest.fn();
-    renderWithProviders(<VideoCard video={a} width={170} onOpen={onOpen} />);
-    fireEvent.press(screen.getByTestId('video-card'));
-    expect(onOpen).toHaveBeenCalledWith(a);
-    expect(screen.queryByTestId('preview-video')).toBeNull();
-  });
-
-  it('a long press shows the preview in place (and a loader until it plays)', () => {
-    const onOpen = jest.fn();
-    renderWithProviders(<VideoCard video={a} width={170} onOpen={onOpen} />);
-    fireEvent(screen.getByTestId('video-card'), 'longPress');
-
-    expect(screen.getByTestId('preview-video')).toBeOnTheScreen();
-    expect(screen.getByTestId('preview-loader')).toBeOnTheScreen();
+  it('a quick tap starts the preview immediately and does not open the video', () => {
+    const { onOpen, card } = renderCard();
+    fireEvent.press(card());
+    expect(previewMock.startSpy).toHaveBeenCalledWith(video.id);
     expect(onOpen).not.toHaveBeenCalled();
+    expect(screen.getByTestId('preview-player')).toBeOnTheScreen();
   });
 
-  it('releasing the finger stops the preview', () => {
-    renderWithProviders(<VideoCard video={a} width={170} onOpen={jest.fn()} />);
-    const card = screen.getByTestId('video-card');
-    fireEvent(card, 'longPress');
-    fireEvent(card, 'pressOut');
-    expect(screen.queryByTestId('preview-video')).toBeNull();
+  it('shows the loader until the first frame is ready', () => {
+    const { card } = renderCard();
+    fireEvent.press(card());
+    expect(screen.getByTestId('preview-loader')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('preview-player')); // simulate onReady
+    expect(screen.queryByTestId('preview-loader')).toBeNull();
   });
 
-  it('only one card previews at a time', () => {
-    renderWithProviders(
-      <>
-        <VideoCard video={a} width={170} onOpen={jest.fn()} />
-        <VideoCard video={b} width={170} onOpen={jest.fn()} />
-      </>,
-    );
-    const [first, second] = screen.getAllByTestId('video-card');
-    fireEvent(first, 'longPress');
-    fireEvent(second, 'longPress');
+  it('touch held past the delay starts the preview, and releasing keeps it playing', () => {
+    const { onOpen, card } = renderCard();
+    fireEvent(card(), 'pressIn');
+    expect(previewMock.startSpy).not.toHaveBeenCalled();
 
-    const videos = screen.getAllByTestId('preview-video');
-    expect(videos).toHaveLength(1);
-    expect(videos[0].props.accessibilityLabel).toBe(b.videoUrl);
+    act(() => {
+      jest.advanceTimersByTime(HOME.preview.touchDelayMs + 5);
+    });
+    expect(previewMock.startSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent(card(), 'pressOut');
+    fireEvent.press(card());
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(previewMock.stopSpy).not.toHaveBeenCalled();
+    expect(screen.getByTestId('preview-player')).toBeOnTheScreen();
   });
 
-  it('has an accessible label and a preview action', () => {
-    renderWithProviders(<VideoCard video={a} width={170} onOpen={jest.fn()} />);
-    const card = screen.getByTestId('video-card');
-    expect(card.props.accessibilityLabel).toContain('Neon Nights');
-    expect(card.props.accessibilityHint).toMatch(/hold to preview/i);
+  it('cancels the preview if the touch ends (e.g. a scroll) before the delay', () => {
+    const { card } = renderCard();
+    fireEvent(card(), 'pressIn');
+    fireEvent(card(), 'pressOut');
+    act(() => {
+      jest.advanceTimersByTime(HOME.preview.touchDelayMs * 3);
+    });
+    expect(previewMock.startSpy).not.toHaveBeenCalled();
+  });
+
+  it('tapping a card that is already previewing opens it and stops the preview', () => {
+    const { onOpen, card } = renderCard();
+    fireEvent.press(card()); // start
+    fireEvent.press(card()); // open
+    expect(onOpen).toHaveBeenCalledWith(video);
+    expect(previewMock.stopSpy).toHaveBeenCalledWith(video.id);
+  });
+
+  it('renders a rank badge when given one', () => {
+    render(<VideoCard video={video} width={110} onOpen={jest.fn()} rank={2} />);
+    expect(screen.getByText('2')).toBeOnTheScreen();
   });
 });

@@ -14,6 +14,7 @@ function wireOnlineManager() {
   );
 }
 
+
 export function createQueryClient(): QueryClient {
   wireOnlineManager();
   return new QueryClient({

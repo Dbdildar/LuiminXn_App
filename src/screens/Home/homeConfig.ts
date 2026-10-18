@@ -1,44 +1,31 @@
-/** Layout, timing and sizing for the Home screen. */
+/**
+ * KEEP your existing values for header / search / skeleton; the numbers here are
+ * placeholders. The new keys are grid.columns, grid.maxContentWidth,
+ * trending.minVisible, preview.touchDelayMs and categories.rows.
+ */
 export const HOME = {
-  header: {
-    logoRowHeight: 56,
-    searchHeight: 48,
-    collapsedSize: 44,
-    collapsedHeight: 56,
-    expandedHeight: 120,
-    horizontalPadding: 16,
-    /** Scroll offset (px) after which the search bar turns into an icon. */
-    collapseAt: 48,
-    /** Scroll offset (px) below which it expands again (gap avoids flicker). */
-    expandAt: 8,
-    animationMs: 280,
-  },
-  grid: {padding: 16, gap: 12, cardAspect: 13 / 9},
-  trending: {limit: 10, minWidth: 140, maxWidth: 200, widthRatio: 0.4, gap: 12},
-  search: {debounceMs: 300},
-  preview: {longPressMs: 350},
-  skeleton: {grid: 8, categories: 5, trending: 4},
+  grid: {columns: 3, gap: 8, padding: 12, maxContentWidth: 960},
+  header: {expandedHeight: 132, expandAt: 12, collapseAt: 80},
+  search: {debounceMs: 350},
+  trending: {limit: 10, minVisible: 3},
+  skeleton: {categories: 6},
+  preview: {touchDelayMs: 90},
+  categories: {rows: 2},
 } as const;
 
-export function getColumns(width: number): number {
-  if (width >= 1000) {
-    return 5;
-  }
-  if (width >= 800) {
-    return 4;
-  }
-  if (width >= 560) {
-    return 3;
-  }
-  return 2;
+/** On tablets / landscape the content is centred and capped so cards stay a sane size. */
+export function getContentWidth(width: number) {
+  return Math.min(width, HOME.grid.maxContentWidth);
 }
 
-export function getCardWidth(screenWidth: number, columns: number): number {
-  const {padding, gap} = HOME.grid;
-  return Math.floor((screenWidth - padding * 2 - gap * (columns - 1)) / columns);
+/** Always 3 per row, on every device. */
+export function getColumns(_width: number) {
+  return HOME.grid.columns;
 }
 
-export function getTrendingCardWidth(screenWidth: number): number {
-  const {minWidth, maxWidth, widthRatio} = HOME.trending;
-  return Math.round(Math.min(maxWidth, Math.max(minWidth, screenWidth * widthRatio)));
+/** Exact card width so `columns` cards + gaps + side padding always fit. */
+export function getCardWidth(width: number, columns: number = HOME.grid.columns) {
+  const usable =
+    getContentWidth(width) - HOME.grid.padding * 2 - HOME.grid.gap * (columns - 1);
+  return Math.max(Math.floor(usable / columns), 72);
 }

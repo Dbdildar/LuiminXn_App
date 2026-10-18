@@ -13,7 +13,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {usePreview} from '../../features/preview';
+import {PreviewLoader, PreviewPlayer, usePreview} from '../../features/preview';
 import {
   useCategories,
   useTrending,
@@ -31,19 +31,15 @@ import {
   TrendingRail,
   VideoCard,
 } from './components';
-import {HOME, getCardWidth, getColumns} from './homeConfig';
+import {HOME, getCardWidth, getColumns, getContentWidth} from './homeConfig';
 
 type Props = {
-  /** Called when a video card is tapped. Navigation lives outside this screen. */
+  /** Called when a video is opened (second tap on a previewing card). */
   onOpenVideo?: (video: VideoItem) => void;
 };
 
 const noop = () => {};
 
-/**
- * Home: collapsing search header, category chips, Trending row and the
- * infinite "All Videos" grid. Everything is driven by the Supabase data layer.
- */
 export function HomeScreen({onOpenVideo = noop}: Props) {
   const {width} = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -67,8 +63,10 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
 
   const listRef = useRef<FlatList<VideoItem>>(null);
 
+  // Responsive: always 3 columns, content capped + centred on tablets.
   const columns = getColumns(width);
   const cardWidth = getCardWidth(width, columns);
+  const contentWidth = getContentWidth(width);
 
   const videos = useMemo(() => {
     const all = (feed.data?.pages ?? []).flatMap(p => p.items);
@@ -80,10 +78,11 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
   const showTrending = !isSearching && category === 'All';
   const expanded = !scrolled || searchOpen;
 
-  // New results start from the top.
+  // New results start from the top and any running preview stops.
   useEffect(() => {
     listRef.current?.scrollToOffset({offset: 0, animated: false});
-  }, [search, category]);
+    stopPreview();
+  }, [search, category, stopPreview]);
 
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
@@ -187,7 +186,6 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
       <FlatList
         ref={listRef}
         testID="home-list"
-        key={`columns-${columns}`}
         data={feed.isLoading ? [] : videos}
         numColumns={columns}
         keyExtractor={v => v.id}
@@ -195,8 +193,10 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
         ListHeaderComponent={listHeader}
         ListEmptyComponent={empty}
         ListFooterComponent={footer}
-        columnWrapperStyle={columns > 1 ? styles.row : undefined}
+        columnWrapperStyle={styles.row}
         contentContainerStyle={{
+          width: contentWidth,
+          alignSelf: 'center',
           paddingTop: insets.top + HOME.header.expandedHeight,
           paddingBottom: insets.bottom + 32,
         }}
@@ -207,8 +207,10 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
         onEndReachedThreshold={0.6}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        removeClippedSubviews
-        initialNumToRender={8}
+        // clipped subviews + playing video + 3D transforms flicker on Android
+        removeClippedSubviews={false}
+        initialNumToRender={columns * 3}
+        maxToRenderPerBatch={columns * 3}
         windowSize={7}
         refreshControl={
           <RefreshControl
@@ -237,7 +239,7 @@ const styles = StyleSheet.create({
   row: {
     gap: HOME.grid.gap,
     paddingHorizontal: HOME.grid.padding,
-    marginBottom: HOME.grid.gap,
+    marginBottom: HOME.grid.gap + 6,
   },
   footer: {alignItems: 'center', justifyContent: 'center', paddingVertical: 28},
   footerText: {color: colors.mist, fontFamily: fonts.medium, fontSize: 11},

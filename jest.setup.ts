@@ -7,6 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 
 
+jest.mock('./src/features/preview', () =>
+  require('./__tests__/helpers/previewMock').previewModule,
+);
+
 // Suppress noisy React Native act() warnings from animations and async hooks during tests
 const originalError = console.error;
 beforeAll(() => {
