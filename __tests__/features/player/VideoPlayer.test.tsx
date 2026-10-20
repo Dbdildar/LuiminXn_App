@@ -9,6 +9,8 @@ import { renderWithProviders } from '../../helpers/renderWithProviders';
 jest.mock('@react-native-community/netinfo', () =>
   require('../../helpers/netInfoMock').netInfoModule,
 );
+
+
 jest.setTimeout(15000);
 // Name starts with "mock" so jest.mock's hoisting check allows it (only read lazily).
 const mockSeek = jest.fn();
@@ -70,14 +72,17 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // Only flush timers if fake timers are still active (avoids the console.warn spam).
-  if ((setTimeout as any).clock) {
-    act(() => {
+  act(() => {
+    try {
       jest.runOnlyPendingTimers();
-    });
-  }
+    } catch (e) {
+      // Ignore if fake timers are not enabled for a specific test
+    }
+  });
   jest.useRealTimers();
+  jest.clearAllMocks();
 });
+
 
 describe('VideoPlayer', () => {
   it('autoplays the video url, unmuted at 1x', () => {

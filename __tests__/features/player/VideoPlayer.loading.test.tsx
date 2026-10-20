@@ -84,12 +84,15 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if ((setTimeout as any).clock) {
-    act(() => {
+  act(() => {
+    try {
       jest.runOnlyPendingTimers();
-    });
-  }
+    } catch (e) {
+      // Ignore if fake timers are not enabled for a specific test
+    }
+  });
   jest.useRealTimers();
+  jest.clearAllMocks();
 });
 
 describe('VideoPlayer loading states', () => {
