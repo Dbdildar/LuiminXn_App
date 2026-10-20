@@ -1,6 +1,5 @@
 import {useEffect, useRef} from 'react';
 import {Animated, Easing, StyleSheet, Text, View} from 'react-native';
-import {PLAYER} from './playerConfig';
 
 type Props = {
   label?: string;

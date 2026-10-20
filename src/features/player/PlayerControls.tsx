@@ -3,7 +3,7 @@ import { Icon } from './Icon';
 import { PLAYER, clamp, formatClock } from './playerConfig';
 import { ProgressBar } from './ProgressBar';
 
-const { width, height } = Dimensions.get("screen")
+const {  height } = Dimensions.get('screen')
 
 type Props = {
   title: string;
