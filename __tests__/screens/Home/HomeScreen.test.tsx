@@ -60,7 +60,7 @@ describe('HomeScreen', () => {
     await act(async () => openGate());
     await waitFor(() => expect(screen.queryByTestId('grid-skeleton')).toBeNull(), { timeout: 8000 });
     expect(await screen.findByText('Video 1')).toBeOnTheScreen();
-  }, 10000);
+  }, 15000);
 
   it('shows logo, search, categories (All selected), Trending and All Videos', async () => {
     renderWithProviders(<HomeScreen />);

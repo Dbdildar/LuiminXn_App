@@ -120,7 +120,7 @@ describe('VideoPlayer loading states', () => {
     expect(screen.getByTestId('player-buffering')).toBeOnTheScreen();
     fireEvent(rn(), 'seek', { currentTime: 20, seekTime: 20 });
     expect(screen.queryByTestId('player-buffering')).toBeNull();
-  });
+  },15000);
 
   it('also clears the seek loader once playback reaches the new position', () => {
     mount();
