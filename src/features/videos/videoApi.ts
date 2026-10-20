@@ -249,3 +249,67 @@ export async function fetchCategories(): Promise<string[]> {
     throw toAppError(error);
   }
 }
+
+
+
+/**
+ * !!! NOT a standalone file !!!
+ * PASTE everything below at the BOTTOM of your existing src/features/videos/videoApi.ts
+ * (it re-uses that file's `supabase`, `VideoItem`, `Row` and `mapRow`).
+ * Then delete this file.
+ */
+
+const SELECT = 'id,title,video_url,poster_uri,category,actors,duration_seconds,views';
+
+/** Related videos: same series first, then shared actors, then same category. */
+export async function fetchRelated(video: VideoItem, limit = 24): Promise<VideoItem[]> {
+  const seriesKey = (video.title.split('—')[0] ?? video.title).trim().replace(/[%_]/g, '\\$&');
+
+  const [byCategory, byActor, bySeries] = await Promise.all([
+    supabase
+      .from('metatable')
+      .select(SELECT)
+      .eq('category', video.category)
+      .neq('id', video.id)
+      .order('views', {ascending: false})
+      .limit(limit),
+    video.actors.length
+      ? supabase
+          .from('metatable')
+          .select(SELECT)
+          .overlaps('actors', video.actors)
+          .neq('id', video.id)
+          .limit(limit)
+      : Promise.resolve({data: [], error: null} as any),
+    supabase
+      .from('metatable')
+      .select(SELECT)
+      .ilike('title', `${seriesKey}%`)
+      .neq('id', video.id)
+      .limit(limit),
+  ]);
+
+  if (byCategory.error) {
+    throw new Error(byCategory.error.message);
+  }
+
+  const seen = new Set<string>([video.id]);
+  const out: VideoItem[] = [];
+  for (const res of [bySeries, byActor, byCategory]) {
+    for (const r of (res.data ?? []) as VideoRow[]) {
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      out.push(mapRow(r));
+    }
+  }
+  return out.slice(0, limit);
+}
+
+/** Atomically bumps the view counter in the DB and returns the fresh total. */
+export async function incrementViews(video: VideoItem): Promise<number> {
+  const {data, error} = await supabase.rpc('increment_views', {_id: video.id});
+  if (error || data == null) {
+    throw new Error(error?.message ?? 'increment_views returned nothing');
+  }
+  return Number(data);
+}

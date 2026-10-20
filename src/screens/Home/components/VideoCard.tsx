@@ -4,6 +4,7 @@ import {PreviewLoader, PreviewPlayer, usePreview} from '../../../features/previe
 import type {VideoItem} from '../../../features/videos';
 import {colors, fonts} from '../../../theme';
 import {glass} from '../../../theme/glass';
+import {formatViews} from '../../../features/videos/format';
 import {HOME} from '../homeConfig';
 
 type Props = {
@@ -88,8 +89,6 @@ export const VideoCard = memo(function VideoCard({video, width, onOpen, rank}: P
     {translateY: lift.interpolate({inputRange: [0, 1], outputRange: [0, -4]})},
   ];
 
-  console.log("filflß")
-
   return (
     <Pressable
       testID="video-card"
@@ -118,6 +117,9 @@ export const VideoCard = memo(function VideoCard({video, width, onOpen, rank}: P
           <View style={styles.caption} pointerEvents="none">
             <Text style={styles.title} numberOfLines={2} maxFontSizeMultiplier={1.2}>
               {video.title}
+            </Text>
+            <Text style={styles.views} testID="video-card-views">
+              {formatViews(video.views)} views
             </Text>
             {isActive && <Text style={styles.hint}>Tap to open</Text>}
           </View>
@@ -161,6 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   title: {color: colors.filament, fontFamily: fonts.black, fontSize: 12},
+  views: {color: colors.mist, fontFamily: fonts.medium, fontSize: 10, marginTop: 2},
   hint: {color: colors.neon, fontFamily: fonts.medium, fontSize: 10, marginTop: 2},
   rank: {
     position: 'absolute',
