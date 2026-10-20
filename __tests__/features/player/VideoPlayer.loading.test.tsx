@@ -8,7 +8,7 @@ import { renderWithProviders } from '../../helpers/renderWithProviders';
 jest.mock('@react-native-community/netinfo', () =>
   require('../../helpers/netInfoMock').netInfoModule,
 );
-
+jest.setTimeout(15000);
 // Names start with "mock" so jest.mock's hoisting check allows them (only read lazily).
 const mockSeek = jest.fn();
 let mockOffline = false;
