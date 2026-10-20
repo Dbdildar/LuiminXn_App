@@ -1,7 +1,7 @@
 import {useQueryClient} from '@tanstack/react-query';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {incrementViews} from './videoApi';
-import type {VideoItem} from './videoApi';
+import type {VideoItem} from './types';
 import {bumpViewsInCache} from './viewCache';
 
 /**

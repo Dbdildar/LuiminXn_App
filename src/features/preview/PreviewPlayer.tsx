@@ -1,6 +1,6 @@
 import {StyleSheet} from 'react-native';
 import Video from 'react-native-video';
-import type {VideoItem} from '../../videos';
+import type {VideoItem} from '../videos/types';
 
 type Props = {
   video: VideoItem;

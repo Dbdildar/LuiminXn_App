@@ -1,6 +1,6 @@
 import {useQuery} from '@tanstack/react-query';
 import {fetchRelated} from './videoApi';
-import type {VideoItem} from './videoApi';
+import type {VideoItem} from './types';
 
 /** Similar videos for the one that is playing (series → actors → category). */
 export function useRelatedVideos(video: VideoItem) {
