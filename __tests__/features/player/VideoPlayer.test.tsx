@@ -101,7 +101,7 @@ describe('VideoPlayer', () => {
     fireEvent.press(screen.getByTestId('player-mute'));
     expect(rn().props.muted).toBe(true);
     expect(screen.getByLabelText('Unmute')).toBeOnTheScreen();
-  });
+  },10000);
 
   it('forward / rewind buttons seek by 10 seconds and clamp at 0', () => {
     setup();

@@ -11,12 +11,20 @@ jest.mock('../../../src/features/preview', () =>
 
 const video = makeVideo(2, { title: 'Neon Nights' });
 
+
+
 beforeEach(() => {
   jest.useFakeTimers();
   previewMock.reset();
 });
 afterEach(() => {
-  jest.runOnlyPendingTimers();
+  act(() => {
+    try {
+      jest.runOnlyPendingTimers();
+    } catch (e) {
+      // Ignore if fake timers aren't active
+    }
+  });
   jest.useRealTimers();
 });
 
