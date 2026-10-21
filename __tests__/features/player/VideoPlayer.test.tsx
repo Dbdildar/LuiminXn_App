@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, cleanup } from '@testing-library/react-native';
 import { VideoPlayer } from '../../../src/features/player/VideoPlayer';
 import { PLAYER } from '../../../src/features/player/playerConfig';
 import { makeVideo } from '../../helpers/fixtures';
@@ -66,23 +66,30 @@ function setup(props: Partial<React.ComponentProps<typeof VideoPlayer>> = {}) {
   return handlers;
 }
 
+
+
 beforeEach(() => {
   jest.useFakeTimers();
-  // Clear any specific mocks
   if (typeof mockSeek !== 'undefined' && mockSeek?.mockClear) {
     mockSeek.mockClear();
   }
 });
 
-afterEach(() => {
-  act(() => {
+afterEach(async () => {
+  // Flush pending microtasks and timers
+  await act(async () => {
     try {
-      // Forcefully clear any lingering timers/intervals so they don't block unmount in CI
       jest.clearAllTimers();
+      // Allow any hanging promises to settle
+      await Promise.resolve();
     } catch (e) {
-      // Ignore if fake timers are not enabled for a specific test
+      // Ignore if fake timers are not enabled
     }
   });
+
+  // Explicitly trigger Testing Library cleanup
+  cleanup();
+
   jest.useRealTimers();
   jest.clearAllMocks();
 });
@@ -110,7 +117,7 @@ describe('VideoPlayer', () => {
     fireEvent.press(screen.getByTestId('player-mute'));
     expect(rn().props.muted).toBe(true);
     expect(screen.getByLabelText('Unmute')).toBeOnTheScreen();
-  },10000);
+  }, 10000);
 
   it('forward / rewind buttons seek by 10 seconds and clamp at 0', () => {
     setup();
