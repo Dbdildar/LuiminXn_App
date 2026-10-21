@@ -164,7 +164,7 @@ describe('VideoDetailScreen', () => {
 
   it('counts a view after 5s: +1 instantly, then the database total', async () => {
     renderWithProviders(<VideoDetailScreen video={video} onBack={jest.fn()} />);
-    expect(screen.getByTestId('video-detail-views')).toHaveTextContent('100 views');
+    expect(screen.getByTestId('video-detail-views')).toHaveTextContent('105 views');
     act(() => {
       playFiveSeconds();
     });

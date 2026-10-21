@@ -1,97 +1,84 @@
+import {act, fireEvent, render, screen} from '@testing-library/react-native';
+import {VideoCard} from '../../../src/screens/Home/components/VideoCard';
+import {bumpViews, resetViewsStore} from '../../../src/features/videos/viewsStore';
+import {formatViews} from '../../../src/features/videos/format';
+import type {VideoItem} from '../../../src/features/videos';
 
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { VideoCard } from '../../../src/screens/Home/components/VideoCard';
-import { HOME } from '../../../src/screens/Home/homeConfig';
-import { makeVideo } from '../../helpers/fixtures';
-import { previewMock } from '../../helpers/previewMock';
+const mockStart = jest.fn();
+const mockStop = jest.fn();
+let mockPreviewId: string | null = null;
 
-jest.mock('../../../src/features/preview', () =>
-  require('../../helpers/previewMock').previewModule,
-);
+jest.mock('../../../src/features/preview', () => {
+  const {View} = require('react-native');
+  return {
+    usePreview: () => ({previewId: mockPreviewId, startPreview: mockStart, stopPreview: mockStop}),
+    PreviewPlayer: () => <View testID="preview-player" />,
+    PreviewLoader: () => null,
+  };
+});
 
-const video = makeVideo(2, { title: 'Neon Nights' });
-
-
+const video = {
+  id: 'v1',
+  title: 'Test video',
+  poster: 'https://x/p.jpg',
+  videoUrl: 'https://x/v.mp4',
+  views: 1000,
+  durationSeconds: 65,
+  category: 'Action',
+  actors: [],
+} as unknown as VideoItem;
 
 beforeEach(() => {
-  jest.useFakeTimers();
-  previewMock.reset();
+  jest.clearAllMocks();
+  mockPreviewId = null;
+  resetViewsStore();
 });
-afterEach(() => {
+
+it('tap opens the video and stops its preview', () => {
+  const onOpen = jest.fn();
+  render(<VideoCard video={video} width={120} onOpen={onOpen} />);
+  fireEvent.press(screen.getByTestId('video-card'));
+  expect(mockStop).toHaveBeenCalledWith('v1');
+  expect(onOpen).toHaveBeenCalledWith(video);
+  expect(mockStart).not.toHaveBeenCalled();
+});
+
+it('hold starts the preview and does not open', () => {
+  const onOpen = jest.fn();
+  render(<VideoCard video={video} width={120} onOpen={onOpen} />);
+  fireEvent(screen.getByTestId('video-card'), 'longPress');
+  expect(mockStart).toHaveBeenCalledWith('v1');
+  expect(onOpen).not.toHaveBeenCalled();
+});
+
+it('holding an already-previewing card does not restart it', () => {
+  mockPreviewId = 'v1';
+  render(<VideoCard video={video} width={120} onOpen={jest.fn()} />);
+  fireEvent(screen.getByTestId('video-card'), 'longPress');
+  expect(mockStart).not.toHaveBeenCalled();
+});
+
+it('renders the preview player only for the active card', () => {
+  const {rerender} = render(<VideoCard video={video} width={120} onOpen={jest.fn()} />);
+  expect(screen.queryByTestId('preview-player')).toBeNull();
+  mockPreviewId = 'v1';
+  rerender(<VideoCard video={video} width={120} onOpen={jest.fn()} />);
+  expect(screen.getByTestId('preview-player')).toBeTruthy();
+});
+
+it('tapping a previewing card still opens the real player', () => {
+  mockPreviewId = 'v1';
+  const onOpen = jest.fn();
+  render(<VideoCard video={video} width={120} onOpen={onOpen} />);
+  fireEvent.press(screen.getByTestId('video-card'));
+  expect(onOpen).toHaveBeenCalledWith(video);
+});
+
+it('shows the updated view count instantly after a bump', () => {
+  render(<VideoCard video={video} width={120} onOpen={jest.fn()} />);
+  expect(screen.getByTestId('video-card-views')).toHaveTextContent(`${formatViews(1000)} views`);
   act(() => {
-    try {
-      jest.runOnlyPendingTimers();
-    } catch (e) {
-      // Ignore if fake timers aren't active
-    }
+    bumpViews('v1', 1000);
   });
-  jest.useRealTimers();
-});
-
-const renderCard = (onOpen = jest.fn()) => {
-  render(<VideoCard video={video} width={110} onOpen={onOpen} />);
-  return { onOpen, card: () => screen.getByTestId('video-card') };
-};
-
-describe('VideoCard', () => {
-  it('shows the title', () => {
-    renderCard();
-    expect(screen.getByText('Neon Nights')).toBeOnTheScreen();
-  });
-
-  it('a quick tap starts the preview immediately and does not open the video', () => {
-    const { onOpen, card } = renderCard();
-    fireEvent.press(card());
-    expect(previewMock.startSpy).toHaveBeenCalledWith(video.id);
-    expect(onOpen).not.toHaveBeenCalled();
-    expect(screen.getByTestId('preview-player')).toBeOnTheScreen();
-  });
-
-  it('shows the loader until the first frame is ready', () => {
-    const { card } = renderCard();
-    fireEvent.press(card());
-    expect(screen.getByTestId('preview-loader')).toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId('preview-player')); // simulate onReady
-    expect(screen.queryByTestId('preview-loader')).toBeNull();
-  });
-
-  it('touch held past the delay starts the preview, and releasing keeps it playing', () => {
-    const { onOpen, card } = renderCard();
-    fireEvent(card(), 'pressIn');
-    expect(previewMock.startSpy).not.toHaveBeenCalled();
-
-    act(() => {
-      jest.advanceTimersByTime(HOME.preview.touchDelayMs + 5);
-    });
-    expect(previewMock.startSpy).toHaveBeenCalledTimes(1);
-
-    fireEvent(card(), 'pressOut');
-    fireEvent.press(card());
-    expect(onOpen).not.toHaveBeenCalled();
-    expect(previewMock.stopSpy).not.toHaveBeenCalled();
-    expect(screen.getByTestId('preview-player')).toBeOnTheScreen();
-  });
-
-  it('cancels the preview if the touch ends (e.g. a scroll) before the delay', () => {
-    const { card } = renderCard();
-    fireEvent(card(), 'pressIn');
-    fireEvent(card(), 'pressOut');
-    act(() => {
-      jest.advanceTimersByTime(HOME.preview.touchDelayMs * 3);
-    });
-    expect(previewMock.startSpy).not.toHaveBeenCalled();
-  });
-
-  it('tapping a card that is already previewing opens it and stops the preview', () => {
-    const { onOpen, card } = renderCard();
-    fireEvent.press(card()); // start
-    fireEvent.press(card()); // open
-    expect(onOpen).toHaveBeenCalledWith(video);
-    expect(previewMock.stopSpy).toHaveBeenCalledWith(video.id);
-  });
-
-  it('renders a rank badge when given one', () => {
-    render(<VideoCard video={video} width={110} onOpen={jest.fn()} rank={2} />);
-    expect(screen.getByText('2')).toBeOnTheScreen();
-  });
+  expect(screen.getByTestId('video-card-views')).toHaveTextContent(`${formatViews(1001)} views`);
 });

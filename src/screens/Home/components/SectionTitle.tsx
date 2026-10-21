@@ -2,7 +2,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import {Icon, type IconName} from '../../../components/icons';
 import {colors, fonts} from '../../../theme';
 import {glass} from '../../../theme/glass';
-import {HOME} from '../oldhomeConfig';
+import {HOME} from '../homeConfig';
 
 export function SectionTitle({icon, title}: {icon: IconName; title: string}) {
   return (

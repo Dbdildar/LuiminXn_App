@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,16 +12,16 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {usePreview} from '../../features/preview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePreview } from '../../features/preview';
 import {
   useCategories,
   useTrending,
   useVideoFeed,
   type VideoItem,
 } from '../../features/videos';
-import {useDebouncedValue} from '../../hooks/useDebouncedValue';
-import {colors, fonts} from '../../theme';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { colors, fonts } from '../../theme';
 import {
   CategoryRail,
   CollapsingSearchHeader,
@@ -31,19 +31,21 @@ import {
   TrendingRail,
   VideoCard,
 } from './components';
-import {HOME, getCardWidth, getColumns, getContentWidth} from './homeConfig';
+import { HOME, getCardWidth, getColumns, getContentWidth } from './homeConfig';
 
 type Props = {
   /** Called when a video is opened (second tap on a previewing card). */
   onOpenVideo?: (video: VideoItem) => void;
 };
 
-const noop = () => {};
 
-export function HomeScreen({onOpenVideo = noop}: Props) {
-  const {width} = useWindowDimensions();
+
+const noop = () => { };
+
+export function HomeScreen({ onOpenVideo = noop }: Props) {
+  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const {stopPreview} = usePreview();
+  const { stopPreview } = usePreview();
 
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
@@ -54,12 +56,12 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
   const search = useDebouncedValue(query.trim(), HOME.search.debounceMs);
   const isSearching = search.length > 0;
 
-  const feed = useVideoFeed({search, category});
+  const feed = useVideoFeed({ search, category });
   const categoriesQuery = useCategories();
   const trendingQuery = useTrending(HOME.trending.limit);
-  const {refetch: refetchFeed, fetchNextPage, hasNextPage, isFetchingNextPage} = feed;
-  const {refetch: refetchCategories} = categoriesQuery;
-  const {refetch: refetchTrending} = trendingQuery;
+  const { refetch: refetchFeed, fetchNextPage, hasNextPage, isFetchingNextPage } = feed;
+  const { refetch: refetchCategories } = categoriesQuery;
+  const { refetch: refetchTrending } = trendingQuery;
 
   const listRef = useRef<FlatList<VideoItem>>(null);
 
@@ -67,6 +69,12 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
   const columns = getColumns(width);
   const cardWidth = getCardWidth(width, columns);
   const contentWidth = getContentWidth(width);
+
+
+  const stopPreviewRef = useRef(stopPreview);
+
+  stopPreviewRef.current = stopPreview;
+  const stopAllPreviews = useCallback(() => stopPreviewRef.current(), []);
 
   const videos = useMemo(() => {
     const all = (feed.data?.pages ?? []).flatMap(p => p.items);
@@ -78,33 +86,33 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
   const showTrending = !isSearching && category === 'All';
   const expanded = !scrolled || searchOpen;
 
-  // New results start from the top and any running preview stops.
-  useEffect(() => {
-    listRef.current?.scrollToOffset({offset: 0, animated: false});
-    stopPreview();
-  }, [search, category, stopPreview]);
 
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
     setScrolled(prev => (prev ? y > HOME.header.expandAt : y > HOME.header.collapseAt));
   }, []);
 
-  const handleScrollBeginDrag = useCallback(() => {
-    setSearchOpen(false);
-    Keyboard.dismiss();
-    stopPreview();
-  }, [stopPreview]);
+ useEffect(() => {
+  listRef.current?.scrollToOffset({offset: 0, animated: false});
+  stopAllPreviews();
+}, [search, category, stopAllPreviews]);
+
+const handleScrollBeginDrag = useCallback(() => {
+  setSearchOpen(false);
+  Keyboard.dismiss();
+  stopAllPreviews();
+}, [stopAllPreviews]);
 
   const handleSubmit = useCallback(() => {
     Keyboard.dismiss();
-    listRef.current?.scrollToOffset({offset: 0, animated: true});
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, []);
 
   const handleSelectCategory = useCallback((c: string) => setCategory(c), []);
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage().catch(() => {});
+      fetchNextPage().catch(() => { });
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
@@ -118,13 +126,13 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
   }, [refetchFeed, refetchCategories, refetchTrending]);
 
   const handleRetry = useCallback(() => {
-    refetchFeed().catch(() => {});
-    refetchCategories().catch(() => {});
-    refetchTrending().catch(() => {});
+    refetchFeed().catch(() => { });
+    refetchCategories().catch(() => { });
+    refetchTrending().catch(() => { });
   }, [refetchFeed, refetchCategories, refetchTrending]);
 
   const renderItem = useCallback(
-    ({item}: {item: VideoItem}) => (
+    ({ item }: { item: VideoItem }) => (
       <VideoCard video={item} width={cardWidth} onOpen={onOpenVideo} />
     ),
     [cardWidth, onOpenVideo],
@@ -151,6 +159,7 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
             videos={trending}
             loading={trendingQuery.isLoading}
             onOpenVideo={onOpenVideo}
+            onScrollBeginDrag={stopAllPreviews}
           />
         </>
       )}
@@ -235,14 +244,14 @@ export function HomeScreen({onOpenVideo = noop}: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: {flex: 1, backgroundColor: colors.ink},
+  root: { flex: 1, backgroundColor: colors.ink },
   row: {
     gap: HOME.grid.gap,
     paddingHorizontal: HOME.grid.padding,
     marginBottom: HOME.grid.gap + 6,
   },
-  footer: {alignItems: 'center', justifyContent: 'center', paddingVertical: 28},
-  footerText: {color: colors.mist, fontFamily: fonts.medium, fontSize: 11},
+  footer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 28 },
+  footerText: { color: colors.mist, fontFamily: fonts.medium, fontSize: 11 },
 });
 
 export default HomeScreen;

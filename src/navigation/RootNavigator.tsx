@@ -1,27 +1,32 @@
-import {DarkTheme, NavigationContainer} from '@react-navigation/native';
+import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import {
   createNativeStackNavigator,
   type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
-import {useCallback} from 'react';
-import type {VideoItem} from '../features/videos';
-import {HomeScreen} from '../screens/Home';
-import {VideoDetailScreen} from '../screens/VideoDetail';
-import {colors} from '../theme';
-import type {RootStackParamList} from './types';
-
+import { useCallback, useEffect } from 'react';
+import type { VideoItem } from '../features/videos';
+import { HomeScreen } from '../screens/Home';
+import { VideoDetailScreen } from '../screens/VideoDetail';
+import { colors } from '../theme';
+import type { RootStackParamList } from './types';
+import { usePreview } from '../features/preview';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const theme = {
   ...DarkTheme,
-  colors: {...DarkTheme.colors, background: colors.ink, card: colors.ink, primary: colors.neon},
+  colors: { ...DarkTheme.colors, background: colors.ink, card: colors.ink, primary: colors.neon },
 };
 
 
-function HomeRoute({navigation}: NativeStackScreenProps<RootStackParamList, 'Home'>) {
+function HomeRoute({ navigation }: NativeStackScreenProps<RootStackParamList, 'Home'>) {
+  const { stopPreview } = usePreview();
   const open = useCallback(
-    (video: VideoItem) => navigation?.navigate?.('VideoDetail', {video}),
+    (video: VideoItem) => navigation?.navigate?.('VideoDetail', { video }),
     [navigation],
+  );
+  useEffect(
+    () => navigation?.addListener?.('blur', () => stopPreview()),
+    [navigation, stopPreview],
   );
   return <HomeScreen onOpenVideo={open} />;
 }
@@ -38,9 +43,9 @@ function DetailRoute({
   }
 
   return (
-    <VideoDetailScreen 
-      video={video} 
-      onBack={() => navigation?.goBack?.()} 
+    <VideoDetailScreen
+      video={video}
+      onBack={() => navigation?.goBack?.()}
     />
   );
 }
@@ -53,7 +58,7 @@ export function RootNavigator() {
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
-          contentStyle: {backgroundColor: colors.ink},
+          contentStyle: { backgroundColor: colors.ink },
         }}>
         <Stack.Screen name="Home" component={HomeRoute} />
         <Stack.Screen name="VideoDetail" component={DetailRoute} />

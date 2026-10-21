@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -10,18 +10,19 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {Shimmer} from '../../components/ui/Shimmer';
-import {VideoPlayer, getPlayerHeight, useFullscreen} from '../../features/player';
-import {useVideoFeed, type VideoItem} from '../../features/videos';
-import {formatDuration, formatViews} from '../../features/videos/format';
-import {useRelatedVideos} from '../../features/videos/useRelatedVideos';
-import {useVideoViews} from '../../features/videos/useVideoViews';
-import {useDebouncedValue} from '../../hooks/useDebouncedValue';
-import {colors, fonts} from '../../theme';
-import {HOME} from '../Home/homeConfig';
-import {DetailHeader} from './components/DetailHeader';
-import {VideoListItem} from './components/VideoListItem';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Shimmer } from '../../components/ui/Shimmer';
+import { VideoPlayer, getPlayerHeight, useFullscreen } from '../../features/player';
+import { useVideoFeed, type VideoItem } from '../../features/videos';
+import { formatDuration, formatViews } from '../../features/videos/format';
+import { useRelatedVideos } from '../../features/videos/useRelatedVideos';
+import { useVideoViews } from '../../features/videos/useVideoViews';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { colors, fonts } from '../../theme';
+import { HOME } from '../Home/homeConfig';
+import { DetailHeader } from './components/DetailHeader';
+import { VideoListItem } from './components/VideoListItem';
+import { bumpViews, useViewCount } from '../../features/videos/viewsStore';
 
 type Props = {
   video: VideoItem;
@@ -31,20 +32,20 @@ type Props = {
 
 const MAX_CONTENT_WIDTH = 840;
 
-function RowSkeleton({thumbWidth}: {thumbWidth: number}) {
+function RowSkeleton({ thumbWidth }: { thumbWidth: number }) {
   return (
     <View style={styles.skelRow} testID="detail-skeleton">
-      <Shimmer style={{width: thumbWidth, height: Math.round((thumbWidth * 9) / 16), borderRadius: 10}} />
+      <Shimmer style={{ width: thumbWidth, height: Math.round((thumbWidth * 9) / 16), borderRadius: 10 }} />
       <View style={styles.skelText}>
-        <Shimmer style={{height: 12, borderRadius: 6, width: '90%'}} />
-        <Shimmer style={{height: 12, borderRadius: 6, width: '55%'}} />
+        <Shimmer style={{ height: 12, borderRadius: 6, width: '90%' }} />
+        <Shimmer style={{ height: 12, borderRadius: 6, width: '55%' }} />
       </View>
     </View>
   );
 }
 
-export function VideoDetailScreen({video, onBack}: Props) {
-  const {width, height} = useWindowDimensions();
+export function VideoDetailScreen({ video, onBack }: Props) {
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const fullscreen = useFullscreen();
 
@@ -60,12 +61,19 @@ export function VideoDetailScreen({video, onBack}: Props) {
   const showResults = searchOpen && trimmed.length > 0; // typing closes the player
   const resultsPending = search !== trimmed;
 
-  const feed = useVideoFeed({search, category: 'All'});
+  const feed = useVideoFeed({ search, category: 'All' });
   const related = useRelatedVideos(current);
-  const {views, recordView} = useVideoViews(current);
+  const { views, recordView } = useVideoViews(current);
 
   const contentWidth = Math.min(width, MAX_CONTENT_WIDTH);
   const thumbWidth = Math.min(Math.max(Math.round(contentWidth * 0.4), 120), 240);
+
+  const shownViews = useViewCount(current.id, views);
+
+  // Count the view instantly when a video is opened or picked from the lists.
+  useEffect(() => {
+    bumpViews(current.id, current.views);
+  }, [current.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const results = useMemo(() => {
     const all = (feed.data?.pages ?? []).flatMap(p => p.items);
@@ -95,19 +103,19 @@ export function VideoDetailScreen({video, onBack}: Props) {
       setCurrent(v);
       setSearchOpen(false);
       setQuery('');
-      listRef.current?.scrollToOffset({offset: 0, animated: false});
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
     },
     [],
   );
 
   const handleEndReached = useCallback(() => {
     if (feed.hasNextPage && !feed.isFetchingNextPage) {
-      feed.fetchNextPage().catch(() => {});
+      feed.fetchNextPage().catch(() => { });
     }
   }, [feed]);
 
   const renderItem = useCallback(
-    ({item}: {item: VideoItem}) => (
+    ({ item }: { item: VideoItem }) => (
       <VideoListItem video={item} thumbWidth={thumbWidth} isCurrent={item.id === current.id} onPress={handleSelect} />
     ),
     [thumbWidth, current.id, handleSelect],
@@ -115,7 +123,7 @@ export function VideoDetailScreen({video, onBack}: Props) {
 
   const playerStyle = fullscreen.isFullscreen
     ? styles.fullscreen
-    : {width: '100%' as const, height: getPlayerHeight(width, height)};
+    : { width: '100%' as const, height: getPlayerHeight(width, height) };
 
   const meta = (
     <View style={styles.meta}>
@@ -123,7 +131,7 @@ export function VideoDetailScreen({video, onBack}: Props) {
         {current.title}
       </Text>
       <Text testID="video-detail-views" style={styles.metaLine}>
-        {formatViews(views)} views
+        {formatViews(shownViews)} views
       </Text>
       <Text style={styles.metaLine} numberOfLines={2}>
         {[current.category, formatDuration(current.durationSeconds), current.actors.join(', ')]
@@ -134,7 +142,7 @@ export function VideoDetailScreen({video, onBack}: Props) {
     </View>
   );
 
-  const contentStyle = {width: contentWidth, alignSelf: 'center' as const, paddingBottom: insets.bottom + 24};
+  const contentStyle = { width: contentWidth, alignSelf: 'center' as const, paddingBottom: insets.bottom + 24 };
 
   const resultsEmpty =
     resultsPending || feed.isLoading ? (
@@ -236,18 +244,18 @@ export function VideoDetailScreen({video, onBack}: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: {flex: 1, backgroundColor: colors.ink},
-  fullscreen: {position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20,borderRadius:10},
-  meta: {paddingHorizontal: 12, paddingTop: 12, gap: 4},
-  title: {color: colors.filament, fontFamily: fonts.black, fontSize: 18},
-  metaLine: {color: colors.mist, fontFamily: fonts.medium, fontSize: 12},
-  section: {color: colors.filament, fontFamily: fonts.black, fontSize: 15, marginTop: 12, marginBottom: 4},
-  resultsTitle: {paddingHorizontal: 12},
-  skelRow: {flexDirection: 'row', gap: 12, paddingHorizontal: 12, paddingVertical: 8},
-  skelText: {flex: 1, gap: 8, justifyContent: 'center'},
-  state: {alignItems: 'center', paddingVertical: 28},
-  stateText: {color: colors.mist, fontFamily: fonts.medium, fontSize: 12},
-  footer: {paddingVertical: 20},
+  root: { flex: 1, backgroundColor: colors.ink },
+  fullscreen: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, borderRadius: 10 },
+  meta: { paddingHorizontal: 12, paddingTop: 12, gap: 4 },
+  title: { color: colors.filament, fontFamily: fonts.black, fontSize: 18 },
+  metaLine: { color: colors.mist, fontFamily: fonts.medium, fontSize: 12 },
+  section: { color: colors.filament, fontFamily: fonts.black, fontSize: 15, marginTop: 12, marginBottom: 4 },
+  resultsTitle: { paddingHorizontal: 12 },
+  skelRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 12, paddingVertical: 8 },
+  skelText: { flex: 1, gap: 8, justifyContent: 'center' },
+  state: { alignItems: 'center', paddingVertical: 28 },
+  stateText: { color: colors.mist, fontFamily: fonts.medium, fontSize: 12 },
+  footer: { paddingVertical: 20 },
 });
 
 export default VideoDetailScreen;

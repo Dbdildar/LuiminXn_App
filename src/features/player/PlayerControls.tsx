@@ -1,9 +1,9 @@
-import { Animated, Pressable, StyleSheet, Text, Dimensions, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon } from './Icon';
 import { PLAYER, clamp, formatClock } from './playerConfig';
 import { ProgressBar } from './ProgressBar';
 
-const {  height } = Dimensions.get('screen')
+
 
 type Props = {
   title: string;
@@ -13,6 +13,7 @@ type Props = {
   ended: boolean;
   /** first load / buffering / seeking: the loader takes the play button's place */
   loading?: boolean;
+  height: number;
   muted: boolean;
   speed: number;
   speedMenuOpen: boolean;
@@ -76,16 +77,30 @@ function SkipGlyph({ forward, size }: { forward: boolean; size: number }) {
 export function PlayerControls(p: Props) {
   const playSize = clamp(p.width * 0.13, 44, 72);
   const skipSize = clamp(p.width * 0.085, 32, 48);
-  const padL = Math.max(p.insets.left, 12) + 4;
-  const padR = Math.max(p.insets.right, 12) + 4;
+
+  // Safe-area insets only matter in fullscreen; embedded, the player is not at the screen edge.
+  const insetL = p.isFullscreen ? p.insets.left : 0;
+  const insetR = p.isFullscreen ? p.insets.right : 0;
+  const insetB = p.isFullscreen ? p.insets.bottom : 0;
+  const insetT = p.isFullscreen ? p.insets.top : 0;
+
+  // Edge spacing scales with the player's own height (about 9px at 225px tall).
+  const edge = clamp(p.height * 0.02, 1, 1);
+
+  const padL = Math.max(insetL, 12) + 4;
+  const padR = Math.max(insetR, 12) + 4;
+  const bottomPad = Math.max(insetB, edge);
+
   const remaining = Math.max(p.duration - p.currentTime, 0);
+
+  
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none" testID="player-controls">
       <View style={styles.scrim} pointerEvents="none" />
 
       {p.isFullscreen && (
-        <View style={[styles.top, { paddingTop: Math.max(p.insets.top, 12), paddingLeft: padL, paddingRight: padR }]} pointerEvents="box-none">
+        <View style={[styles.top, { paddingTop: Math.max(insetT, 12), paddingLeft: padL, paddingRight: padR }]} pointerEvents="box-none">
           <Pressable
             testID="player-exit-fullscreen"
             accessibilityRole="button"
@@ -126,9 +141,8 @@ export function PlayerControls(p: Props) {
         </RoundButton>
       </View>
 
-      <View style={[styles.bottom, { paddingBottom: Math.max(p.insets.bottom, 8) }]} pointerEvents="box-none">
-        {/* Full-width progress bar with padding */}
-        <View style={styles.progressRow}>
+      <View style={[styles.bottom, { paddingBottom: bottomPad }]} pointerEvents="box-none">
+        <View style={[styles.progressRow, { marginHorizontal: padL }]}>
           <ProgressBar
             progress={p.progress}
             buffered={p.buffered}
@@ -208,13 +222,15 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7, transform: [{ scale: 0.94 }] },
   glyph: { alignItems: 'center', justifyContent: 'center' },
   glyphText: { position: 'absolute', color: '#fff', fontWeight: '800' },
-  bottom: { position: 'absolute', left: 0, right: 0, bottom:-height*0.06, gap: 4 },
-  
-  // Clean spacing without negative margins
-  progressRow: { marginHorizontal: 16, marginBottom: 2 },
-  
+
+  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, gap: -1 },
+  progressRow: { marginBottom: 1 },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+
   time: { color: '#fff', fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 0,bottom:height*0.025 },
+
+  // Action elements row (paddingBottom is handled dynamically inline via insets)
+
   actionsLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   speedBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
   speedText: { color: '#fff', fontSize: 12, fontWeight: '800' },

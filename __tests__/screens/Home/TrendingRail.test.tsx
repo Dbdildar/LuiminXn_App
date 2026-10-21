@@ -12,6 +12,7 @@ jest.mock('../../../src/features/preview', () =>
 beforeEach(() => previewMock.reset());
 
 const videos = [makeVideo(1), makeVideo(2), makeVideo(3), makeVideo(4)];
+const cardAt = (i: number) => screen.getAllByTestId('video-card')[i];
 
 describe('TrendingRail', () => {
   it('shows at least 3 shimmer cards while loading', () => {
@@ -41,13 +42,42 @@ describe('TrendingRail', () => {
     expect(screen.getByText('3')).toBeOnTheScreen();
   });
 
-  it('first tap previews, second tap opens', () => {
+  it('a tap opens the video straight away', () => {
     const onOpen = jest.fn();
     render(<TrendingRail videos={videos} loading={false} onOpenVideo={onOpen} />);
-    const card = () => screen.getAllByTestId('video-card')[1];
-    fireEvent.press(card());
-    expect(previewMock.startSpy).toHaveBeenCalledWith('v2');
-    fireEvent.press(card());
+    fireEvent.press(cardAt(1));
+    expect(onOpen).toHaveBeenCalledTimes(1);
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'v2' }));
+    expect(previewMock.startSpy).not.toHaveBeenCalled();
+  });
+
+  it('a hold starts the preview and does not open the video', () => {
+    const onOpen = jest.fn();
+    render(<TrendingRail videos={videos} loading={false} onOpenVideo={onOpen} />);
+    fireEvent(cardAt(1), 'longPress');
+    expect(previewMock.startSpy).toHaveBeenCalledWith('v2');
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('holding a different card starts that card\'s preview', () => {
+    render(<TrendingRail videos={videos} loading={false} onOpenVideo={jest.fn()} />);
+    fireEvent(cardAt(0), 'longPress');
+    fireEvent(cardAt(2), 'longPress');
+    expect(previewMock.startSpy).toHaveBeenNthCalledWith(1, 'v1');
+    expect(previewMock.startSpy).toHaveBeenNthCalledWith(2, 'v3');
+  });
+
+  it('calls onScrollBeginDrag when the rail is dragged', () => {
+    const onScrollBeginDrag = jest.fn();
+    render(
+      <TrendingRail
+        videos={videos}
+        loading={false}
+        onOpenVideo={jest.fn()}
+        onScrollBeginDrag={onScrollBeginDrag}
+      />,
+    );
+    fireEvent(screen.getByTestId('trending-rail'), 'scrollBeginDrag');
+    expect(onScrollBeginDrag).toHaveBeenCalledTimes(1);
   });
 });

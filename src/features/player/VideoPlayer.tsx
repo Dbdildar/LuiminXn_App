@@ -393,7 +393,7 @@ export const VideoPlayer = memo(function VideoPlayer({
 
       {holding && (
         <View pointerEvents="none" style={styles.holdPill} testID="player-hold-pill">
-          <Text style={styles.holdText}>{PLAYER.holdRate}2X</Text>
+          <Text style={styles.holdText}>{PLAYER.holdRate}X</Text>
         </View>
       )}
 
@@ -415,6 +415,7 @@ export const VideoPlayer = memo(function VideoPlayer({
           playing={playing}
           ended={ended}
           loading={showLoader}
+          height={size.height}
           muted={muted}
           speed={speed}
           speedMenuOpen={speedMenuOpen}
