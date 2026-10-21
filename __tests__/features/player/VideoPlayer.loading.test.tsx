@@ -78,15 +78,17 @@ const goOnline = () => setOffline(false);
 
 beforeEach(() => {
   jest.useFakeTimers();
-  mockOffline = false;
-  mockOfflineListeners.clear();
-  mockSeek.mockClear();
+  // Clear any specific mocks
+  if (typeof mockSeek !== 'undefined' && mockSeek?.mockClear) {
+    mockSeek.mockClear();
+  }
 });
 
 afterEach(() => {
   act(() => {
     try {
-      jest.runOnlyPendingTimers();
+      // Forcefully clear any lingering timers/intervals so they don't block unmount in CI
+      jest.clearAllTimers();
     } catch (e) {
       // Ignore if fake timers are not enabled for a specific test
     }
