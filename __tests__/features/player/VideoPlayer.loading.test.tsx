@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, cleanup } from '@testing-library/react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
 import { VideoPlayer } from '../../../src/features/player/VideoPlayer';
 import { PLAYER } from '../../../src/features/player/playerConfig';
 import { makeVideo } from '../../helpers/fixtures';
