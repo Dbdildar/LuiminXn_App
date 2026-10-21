@@ -69,27 +69,21 @@ function setup(props: Partial<React.ComponentProps<typeof VideoPlayer>> = {}) {
 
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
   if (typeof mockSeek !== 'undefined' && mockSeek?.mockClear) {
     mockSeek.mockClear();
   }
 });
 
 afterEach(async () => {
-  // Flush pending microtasks and timers
   await act(async () => {
     try {
       jest.clearAllTimers();
-      // Allow any hanging promises to settle
       await Promise.resolve();
     } catch (e) {
-      // Ignore if fake timers are not enabled
+      // Ignore
     }
   });
-
-  // Explicitly trigger Testing Library cleanup
-  cleanup();
-
   jest.useRealTimers();
   jest.clearAllMocks();
 });
