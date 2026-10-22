@@ -1,6 +1,6 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import Video from 'react-native-video';
-import type {VideoItem} from '../videos/types';
+import type { VideoItem } from '../videos/types';
 
 type Props = {
   video: VideoItem;
@@ -18,14 +18,14 @@ const BUFFER = {
 };
 
 /** Muted, looping preview clip drawn over the card's poster. */
-export function PreviewPlayer({video, onReady, onError}: Props) {
+export function PreviewPlayer({ video, onReady, onError }: Props) {
   if (!video.videoUrl) {
     return null;
   }
   return (
     <Video
       testID="preview-video"
-      source={{uri: video.videoUrl}}
+      source={{ uri: video.videoUrl }}
       style={StyleSheet.absoluteFill}
       resizeMode="cover"
       muted
@@ -35,7 +35,14 @@ export function PreviewPlayer({video, onReady, onError}: Props) {
       playInBackground={false}
       bufferConfig={BUFFER}
       onReadyForDisplay={onReady}
-      onError={onError}
+      onLoad={onReady}
+      onError={e => {
+        if (__DEV__) {
+          console.warn('Preview failed', video.videoUrl, e);
+        }
+        onError?.();
+      }}
+      //onError={onError}
     />
   );
 }

@@ -24,10 +24,10 @@ function HomeRoute({ navigation }: NativeStackScreenProps<RootStackParamList, 'H
     (video: VideoItem) => navigation?.navigate?.('VideoDetail', { video }),
     [navigation],
   );
-  useEffect(
-    () => navigation?.addListener?.('blur', () => stopPreview()),
-    [navigation, stopPreview],
-  );
+ useEffect(() => {
+    const unsub = navigation?.addListener?.('blur', () => stopPreview());
+    return unsub;
+  }, [navigation, stopPreview]);
   return <HomeScreen onOpenVideo={open} />;
 }
 

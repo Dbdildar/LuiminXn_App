@@ -69,10 +69,8 @@ export const VideoCard = memo(function VideoCard({ video, width, onOpen, rank }:
   }, [isActive, lift]);
 
   const handleLongPress = () => {
-    if (!isActive) {
-      startPreview(video.id);
-    }
-  };
+  startPreview(video.id);
+};
 
   const handlePress = () => {
     // a plain tap always opens the real player (and stops the muted preview)
@@ -104,7 +102,7 @@ export const VideoCard = memo(function VideoCard({ video, width, onOpen, rank }:
         <View style={styles.face}>
           <Image source={{ uri: video.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           {isActive && (
-            <View style={StyleSheet.absoluteFill}>
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
               <PreviewPlayer
                 video={video}
                 onReady={() => setReady(true)}
