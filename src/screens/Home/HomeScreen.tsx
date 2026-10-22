@@ -13,7 +13,6 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePreview } from '../../features/preview';
 import {
   useCategories,
   useTrending,
@@ -45,7 +44,6 @@ const noop = () => { };
 export function HomeScreen({ onOpenVideo = noop }: Props) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { stopPreview } = usePreview();
 
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
@@ -71,11 +69,7 @@ export function HomeScreen({ onOpenVideo = noop }: Props) {
   const contentWidth = getContentWidth(width);
 
 
-  const stopPreviewRef = useRef(stopPreview);
-
-  stopPreviewRef.current = stopPreview;
-  const stopAllPreviews = useCallback(() => stopPreviewRef.current(), []);
-
+ 
   const videos = useMemo(() => {
     const all = (feed.data?.pages ?? []).flatMap(p => p.items);
     return Array.from(new Map(all.map(v => [v.id, v])).values());
@@ -92,16 +86,15 @@ export function HomeScreen({ onOpenVideo = noop }: Props) {
     setScrolled(prev => (prev ? y > HOME.header.expandAt : y > HOME.header.collapseAt));
   }, []);
 
- useEffect(() => {
-  listRef.current?.scrollToOffset({offset: 0, animated: false});
-  stopAllPreviews();
-}, [search, category, stopAllPreviews]);
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
 
-const handleScrollBeginDrag = useCallback(() => {
-  setSearchOpen(false);
-  Keyboard.dismiss();
-  stopAllPreviews();
-}, [stopAllPreviews]);
+  }, [search, category]);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    setSearchOpen(false);
+    Keyboard.dismiss();
+  }, []);
 
   const handleSubmit = useCallback(() => {
     Keyboard.dismiss();
@@ -159,7 +152,6 @@ const handleScrollBeginDrag = useCallback(() => {
             videos={trending}
             loading={trendingQuery.isLoading}
             onOpenVideo={onOpenVideo}
-            onScrollBeginDrag={stopAllPreviews}
           />
         </>
       )}

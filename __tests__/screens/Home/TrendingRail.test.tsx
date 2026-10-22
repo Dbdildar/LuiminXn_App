@@ -3,13 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { TrendingRail } from '../../../src/screens/Home/components/TrendingRail';
 import { HOME, getCardWidth } from '../../../src/screens/Home/homeConfig';
 import { makeVideo } from '../../helpers/fixtures';
-import { previewMock } from '../../helpers/previewMock';
 
-jest.mock('../../../src/features/preview', () =>
-  require('../../helpers/previewMock').previewModule,
-);
 
-beforeEach(() => previewMock.reset());
+
 
 const videos = [makeVideo(1), makeVideo(2), makeVideo(3), makeVideo(4)];
 const cardAt = (i: number) => screen.getAllByTestId('video-card')[i];
@@ -48,14 +44,14 @@ describe('TrendingRail', () => {
     fireEvent.press(cardAt(1));
     expect(onOpen).toHaveBeenCalledTimes(1);
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'v2' }));
-    expect(previewMock.startSpy).not.toHaveBeenCalled();
+    
   });
 
   it('a hold starts the preview and does not open the video', () => {
     const onOpen = jest.fn();
     render(<TrendingRail videos={videos} loading={false} onOpenVideo={onOpen} />);
     fireEvent(cardAt(1), 'longPress');
-    expect(previewMock.startSpy).toHaveBeenCalledWith('v2');
+    
     expect(onOpen).not.toHaveBeenCalled();
   });
 
@@ -63,8 +59,7 @@ describe('TrendingRail', () => {
     render(<TrendingRail videos={videos} loading={false} onOpenVideo={jest.fn()} />);
     fireEvent(cardAt(0), 'longPress');
     fireEvent(cardAt(2), 'longPress');
-    expect(previewMock.startSpy).toHaveBeenNthCalledWith(1, 'v1');
-    expect(previewMock.startSpy).toHaveBeenNthCalledWith(2, 'v3');
+    
   });
 
   it('calls onScrollBeginDrag when the rail is dragged', () => {

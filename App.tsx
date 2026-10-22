@@ -4,7 +4,6 @@ import {StatusBar} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {AgeGateScreen, useAgeGate} from './src/features/ageGate';
 import {NetworkGate, configureNetInfo, useNetworkStatus} from './src/features/network';
-import {PreviewProvider} from './src/features/preview';
 import {createQueryClient} from './src/lib/queryClient';
 import {RootNavigator} from './src/navigation/RootNavigator';
 import {SplashScreen} from './src/screens/Splash';
@@ -47,10 +46,8 @@ function App() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <PreviewProvider>
           <StatusBar barStyle="light-content" backgroundColor={colors.ink} translucent={false} />
           {screen}
-        </PreviewProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
   );

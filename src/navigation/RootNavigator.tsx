@@ -9,7 +9,6 @@ import { HomeScreen } from '../screens/Home';
 import { VideoDetailScreen } from '../screens/VideoDetail';
 import { colors } from '../theme';
 import type { RootStackParamList } from './types';
-import { usePreview } from '../features/preview';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const theme = {
@@ -19,15 +18,14 @@ const theme = {
 
 
 function HomeRoute({ navigation }: NativeStackScreenProps<RootStackParamList, 'Home'>) {
-  const { stopPreview } = usePreview();
+  
   const open = useCallback(
     (video: VideoItem) => navigation?.navigate?.('VideoDetail', { video }),
     [navigation],
   );
  useEffect(() => {
-    const unsub = navigation?.addListener?.('blur', () => stopPreview());
-    return unsub;
-  }, [navigation, stopPreview]);
+
+  }, [navigation]);
   return <HomeScreen onOpenVideo={open} />;
 }
 

@@ -1,6 +1,5 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { PreviewLoader, PreviewPlayer, usePreview } from '../../../features/preview';
 import type { VideoItem } from '../../../features/videos';
 import { useViewCount } from '../../../features/videos/viewsStore';
 import { colors, fonts } from '../../../theme';
@@ -18,8 +17,7 @@ type Props = {
 /** Thumbnail height = width * ratio. Shared with the skeleton in TrendingRail. */
 export const CARD_THUMB_RATIO = 1.5;
 
-/** Hold time before the preview starts (about the same feel as a scroll-hold). */
-export const PREVIEW_HOLD_MS = 200;
+
 
 const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max);
 
@@ -49,32 +47,23 @@ export function getCaptionHeight(width: number) {
  *  - scrolling            → stops it (HomeScreen/TrendingRail call stopPreview)
  */
 export const VideoCard = memo(function VideoCard({ video, width, onOpen, rank }: Props) {
-  const { previewId, startPreview, stopPreview } = usePreview();
-  const isActive = previewId === video.id;
-  const [ready, setReady] = useState(false);
   const views = useViewCount(video.id, video.views);
 
   const lift = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.spring(lift, {
-      toValue: isActive ? 1 : 0,
+      toValue:   0,
       friction: 7,
       tension: 120,
       useNativeDriver: true,
     }).start();
-    if (!isActive) {
-      setReady(false);
-    }
-  }, [isActive, lift]);
+    
+  }, [ lift]);
 
-  const handleLongPress = () => {
-  startPreview(video.id);
-};
-
+  
   const handlePress = () => {
-    // a plain tap always opens the real player (and stops the muted preview)
-    stopPreview(video.id);
+    
     onOpen(video);
   };
 
@@ -82,9 +71,7 @@ export const VideoCard = memo(function VideoCard({ video, width, onOpen, rank }:
   const thumbHeight = Math.round(width * CARD_THUMB_RATIO);
   const duration = video.durationSeconds ? formatDuration(video.durationSeconds) : '';
 
-  const transform = [
-    { perspective: 800 },
-    { rotateX: lift.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-4deg'] }) },
+    const transform = [
     { scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) },
     { translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
   ];
@@ -93,25 +80,14 @@ export const VideoCard = memo(function VideoCard({ video, width, onOpen, rank }:
     <Pressable
       testID="video-card"
       onPress={handlePress}
-      onLongPress={handleLongPress}
-      delayLongPress={PREVIEW_HOLD_MS}
+    
       style={{ width }}
       accessibilityRole="button"
-      accessibilityLabel={`${video.title}${isActive ? ', previewing. Tap to play' : ', tap to play, hold to preview'}`}>
-      <Animated.View style={[styles.shadow, isActive && styles.glow, { width, height: thumbHeight, transform }]}>
+      accessibilityLabel={`${video.title}${ 'tap to play'}`}>
+      <Animated.View style={[styles.shadow,  { width, height: thumbHeight, transform }]}>
         <View style={styles.face}>
           <Image source={{ uri: video.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          {isActive && (
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              <PreviewPlayer
-                video={video}
-                onReady={() => setReady(true)}
-                onError={() => stopPreview(video.id)}
-              />
-              {!ready && <PreviewLoader />}
-            </View>
-          )}
-
+         
           {rank !== undefined && (
             <View style={styles.rank} pointerEvents="none">
               <Text style={styles.rankText}>{rank}</Text>
@@ -139,7 +115,6 @@ export const VideoCard = memo(function VideoCard({ video, width, onOpen, rank }:
         <Text style={[styles.views, { fontSize: m.metaSize }]} testID="video-card-views">
           {formatViews(views)} views
         </Text>
-        {isActive && <Text style={[styles.hint, { fontSize: m.metaSize }]}>Tap to play</Text>}
       </View>
     </Pressable>
   );
