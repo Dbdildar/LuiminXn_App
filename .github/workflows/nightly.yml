@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout develop
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: develop
 
@@ -76,7 +76,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout develop
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: develop
 
@@ -106,7 +106,7 @@ jobs:
         api-level: [34, 35]
     steps:
       - name: Checkout develop
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: develop
 
